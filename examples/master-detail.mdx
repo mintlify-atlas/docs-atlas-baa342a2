@@ -1,0 +1,449 @@
+---
+title: "Master-Detail Example"
+description: "Create hierarchical grids with expandable detail rows using TeeGrid"
+---
+
+## Overview
+
+TeeGrid supports master-detail relationships where clicking an expand icon reveals a nested sub-grid. This works with databases, arrays, and any data source.
+
+## Basic Master-Detail
+
+### Setting Up the Master Grid
+
+```pascal
+uses
+  FMXTee.Control, FMXTee.Grid, Tee.GridData.DB, Tee.Grid.RowGroup;
+
+procedure TMasterDetail.FormCreate(Sender: TObject);
+begin
+  // Open the master dataset (Customers)
+  SampleData.CustomersTable.Open;
+  
+  // Bind to grid
+  TeeGrid1.DataSource := SampleData.CustomersTable;
+  
+  // Enable the expander
+  CBEnabledChange(Self);
+end;
+```
+
+### Creating the Expander
+
+From the FireMonkey Master-Detail demo:
+
+```pascal
+procedure TMasterDetail.EnableDisableSubGrid(const AGroup: TRowGroup;
+  const AEvent: TExpanderGetDataEvent);
+var
+  Expander: TExpanderRender;
+begin
+  if CBEnabled.IsChecked then
+  begin
+    // Create the expander control
+    Expander := AGroup.NewExpander;
+    
+    // Set the event that provides detail data
+    Expander.OnGetData := AEvent;
+    
+    // Always show expand icon (we don't know in advance if detail exists)
+    Expander.AlwaysExpand := True;
+    
+    // Add expander to first column
+    if AGroup.Columns.Count > 0 then
+      AGroup.Columns[0].Render := Expander;
+  end
+  else
+  begin
+    // Remove all detail grids
+    AGroup.Rows.Children.Clear;
+    
+    // Remove expander from first column
+    if AGroup.Columns.Count > 0 then
+      AGroup.Columns[0].Render := nil;
+  end;
+end;
+```
+
+### Providing Detail Data
+
+```pascal
+// Called when a master row is expanded
+procedure TMasterDetail.GetOrders(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Return a new dataset for the detail grid
+  AData := TVirtualDBData.From(SampleData.OrdersOfCustomer(ARow + 1));
+  
+  // Mark data as owned by the grid (will be auto-freed)
+  TVirtualDBData(AData).OwnsData := True;
+end;
+```
+
+## Multi-Level Master-Detail
+
+You can nest multiple levels (Customer -> Orders -> Order Details):
+
+```pascal
+procedure TMasterDetail.FormCreate(Sender: TObject);
+begin
+  SampleData.CustomersTable.Open;
+  TeeGrid1.DataSource := SampleData.CustomersTable;
+  
+  // Level 1: Customer -> Orders
+  EnableDisableSubGrid(TeeGrid1.Grid.Current, GetOrders);
+  
+  // Handle when a new detail grid is created
+  TeeGrid1.Grid.Current.OnNewDetail := DetailNewGroup;
+end;
+
+// Called when first detail level is created (Orders)
+procedure TMasterDetail.DetailNewGroup(const Sender, NewGroup: TRowGroup);
+var
+  tmpTot: TColumnTotals;
+begin
+  // Level 2: Orders -> Order Details
+  EnableDisableSubGrid(NewGroup, GetOrderItems);
+  
+  // Handle when sub-detail grid is created
+  NewGroup.OnNewDetail := SubDetailNewGroup;
+  
+  // Add totals to the detail grid footer
+  tmpTot := TColumnTotals.Create(NewGroup.Footer);
+  tmpTot.Calculation.Add(NewGroup.Columns[0], TColumnCalculation.Count);
+  tmpTot.Calculation.Add('EmployeeID', TColumnCalculation.Sum);
+  
+  // Add totals header
+  TTotalsHeader.CreateTotals(NewGroup.Footer, tmpTot);
+  
+  // Customize appearance
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.Bisque;
+  NewGroup.Rows.Back.Brush.Visible := True;
+  NewGroup.Cells.Format.Font.Color := TAlphaColors.Darkblue;
+end;
+
+// Level 2 detail data provider
+procedure TMasterDetail.GetOrderItems(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  AData := TVirtualDBData.From(SampleData.OrderDetailsOfOrder(ARow + 1));
+  TVirtualDBData(AData).OwnsData := True;
+end;
+```
+
+## Complete Example
+
+From `Master_Detail_FireDAC.pas`:
+
+```pascal
+unit Master_Detail_FireDAC;
+
+interface
+
+uses
+  FMX.Forms, FMX.StdCtrls, FMX.Layouts, Data.DB,
+  FMXTee.Control, FMXTee.Grid,
+  Tee.Grid.RowGroup, Tee.Renders;
+
+type
+  TMasterDetail = class(TForm)
+    TeeGrid1: TTeeGrid;
+    CBEnabled: TCheckBox;
+    Button1: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure CBEnabledChange(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+  private
+    procedure DetailNewGroup(const Sender, NewGroup: TRowGroup);
+    procedure SubDetailNewGroup(const Sender, NewGroup: TRowGroup);
+    procedure EnableDisableSubGrid(const AGroup: TRowGroup;
+      const AEvent: TExpanderGetDataEvent);
+    procedure GetOrders(const Sender: TExpanderRender;
+      const ARow: Integer; out AData: TObject);
+    procedure GetOrderItems(const Sender: TExpanderRender;
+      const ARow: Integer; out AData: TObject);
+  end;
+
+var
+  MasterDetail: TMasterDetail;
+  Open: Boolean;
+
+implementation
+
+uses
+  Tee.Grid.Totals, Tee.GridData.DB, Tee.Grid.Columns,
+  System.UIConsts, Customer_Orders;
+
+procedure TMasterDetail.FormCreate(Sender: TObject);
+begin
+  // Open master table
+  SampleData.CustomersTable.Open;
+  TeeGrid1.DataSource := SampleData.CustomersTable;
+  
+  Open := False;
+  
+  // Initialize expander
+  CBEnabledChange(Self);
+  
+  // Set up detail creation event
+  TeeGrid1.Grid.Current.OnNewDetail := DetailNewGroup;
+end;
+
+procedure TMasterDetail.Button1Click(Sender: TObject);
+begin
+  // Toggle expand/collapse all
+  if Open then
+  begin
+    TeeGrid1.Grid.Current.ShowHideAllDetail(0, False);
+    Open := False;
+  end
+  else
+  begin
+    TeeGrid1.Grid.Current.ShowHideAllDetail(0, True);
+    Open := True;
+  end;
+end;
+
+procedure TMasterDetail.EnableDisableSubGrid(const AGroup: TRowGroup;
+  const AEvent: TExpanderGetDataEvent);
+var
+  Expander: TExpanderRender;
+begin
+  if CBEnabled.IsChecked then
+  begin
+    // Create expander
+    Expander := AGroup.NewExpander;
+    Expander.OnGetData := AEvent;
+    Expander.AlwaysExpand := True;
+    
+    if AGroup.Columns.Count > 0 then
+      AGroup.Columns[0].Render := Expander;
+  end
+  else
+  begin
+    // Remove detail grids
+    AGroup.Rows.Children.Clear;
+    
+    if AGroup.Columns.Count > 0 then
+      AGroup.Columns[0].Render := nil;
+  end;
+end;
+
+procedure TMasterDetail.CBEnabledChange(Sender: TObject);
+begin
+  EnableDisableSubGrid(TeeGrid1.Grid.Current, GetOrders);
+end;
+
+procedure TMasterDetail.DetailNewGroup(const Sender, NewGroup: TRowGroup);
+var
+  tmpTot: TColumnTotals;
+begin
+  // Set up second level expander
+  EnableDisableSubGrid(NewGroup, GetOrderItems);
+  NewGroup.OnNewDetail := SubDetailNewGroup;
+  
+  // Add totals
+  tmpTot := TColumnTotals.Create(NewGroup.Footer);
+  tmpTot.Calculation.Add(NewGroup.Columns[0], TColumnCalculation.Count);
+  tmpTot.Calculation.Add('EmployeeID', TColumnCalculation.Sum);
+  TTotalsHeader.CreateTotals(NewGroup.Footer, tmpTot);
+  
+  // Styling
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.Bisque;
+  NewGroup.Rows.Back.Brush.Visible := True;
+  NewGroup.Cells.Format.Font.Color := TAlphaColors.Darkblue;
+end;
+
+procedure TMasterDetail.SubDetailNewGroup(const Sender, NewGroup: TRowGroup);
+begin
+  // Style the third level
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.Lavender;
+  NewGroup.Rows.Back.Brush.Visible := True;
+  NewGroup.Cells.Format.Font.Color := TAlphaColors.Blueviolet;
+end;
+
+procedure TMasterDetail.GetOrders(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Return orders for customer
+  AData := TVirtualDBData.From(SampleData.OrdersOfCustomer(ARow + 1));
+  TVirtualDBData(AData).OwnsData := True;
+end;
+
+procedure TMasterDetail.GetOrderItems(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Return order items for order
+  AData := TVirtualDBData.From(SampleData.OrderDetailsOfOrder(ARow + 1));
+  TVirtualDBData(AData).OwnsData := True;
+end;
+
+end.
+```
+
+## Key Concepts
+
+### Expander Render
+
+The `TExpanderRender` displays the expand/collapse icon:
+
+```pascal
+Expander := AGroup.NewExpander;
+Expander.OnGetData := GetDetailData;  // Called when expanded
+Expander.AlwaysExpand := True;        // Always show icon
+```
+
+### OnGetData Event
+
+```pascal
+procedure GetDetailData(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Create and return data for the detail grid
+  AData := TVirtualDBData.From(MyDetailDataset);
+  
+  // Grid will free the data when row is collapsed
+  TVirtualDBData(AData).OwnsData := True;
+end;
+```
+
+### OnNewDetail Event
+
+Called when a new detail grid is created:
+
+```pascal
+procedure DetailCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Customize the new detail grid
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.LightBlue;
+  
+  // Add totals, custom bands, etc.
+  // ...
+end;
+```
+
+## Adding Totals to Detail Grids
+
+```pascal
+uses
+  Tee.Grid.Totals;
+
+procedure AddTotalsToDetail(const AGroup: TRowGroup);
+var
+  tmpTot: TColumnTotals;
+begin
+  // Create totals band
+  tmpTot := TColumnTotals.Create(AGroup.Footer);
+  
+  // Add calculations
+  tmpTot.Calculation.Add(AGroup.Columns[0], TColumnCalculation.Count);
+  tmpTot.Calculation.Add('Amount', TColumnCalculation.Sum);
+  tmpTot.Calculation.Add('Price', TColumnCalculation.Average);
+  
+  // Add header
+  TTotalsHeader.CreateTotals(AGroup.Footer, tmpTot);
+  
+  // Style the totals
+  tmpTot.Format.Font.Style := [fsBold];
+end;
+```
+
+## Expand/Collapse All
+
+```pascal
+// Expand all detail rows at level 0
+TeeGrid1.Grid.Current.ShowHideAllDetail(0, True);
+
+// Collapse all detail rows
+TeeGrid1.Grid.Current.ShowHideAllDetail(0, False);
+```
+
+## Styling Detail Grids
+
+```pascal
+procedure StyleDetailGrid(const AGroup: TRowGroup);
+begin
+  // Background color
+  AGroup.Rows.Back.Brush.Color := TAlphaColors.Bisque;
+  AGroup.Rows.Back.Brush.Visible := True;
+  
+  // Font color
+  AGroup.Cells.Format.Font.Color := TAlphaColors.Darkblue;
+  
+  // Border
+  AGroup.Rows.RowLines.Color := TAlphaColors.Gray;
+  AGroup.Rows.RowLines.Show;
+end;
+```
+
+## Features
+
+- **Multiple Levels**: Nest as many levels as needed
+- **Lazy Loading**: Detail data loaded only when expanded
+- **Automatic Cleanup**: Detail grids freed when collapsed
+- **Custom Styling**: Each level can have different appearance
+- **Totals Support**: Add summary calculations to detail grids
+- **Expand/Collapse All**: Programmatic control
+
+## Common Patterns
+
+### Database Master-Detail
+
+```pascal
+// Master: Customers
+TeeGrid1.DataSource := CustomersTable;
+
+// Detail: Orders filtered by CustomerID
+procedure GetOrders(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  OrdersQuery.Close;
+  OrdersQuery.ParamByName('CustomerID').AsInteger := ARow + 1;
+  OrdersQuery.Open;
+  
+  AData := TVirtualDBData.From(OrdersQuery);
+  TVirtualDBData(AData).OwnsData := True;
+end;
+```
+
+### Array Master-Detail
+
+```pascal
+type
+  TOrderItem = record
+    Product: String;
+    Quantity: Integer;
+  end;
+  
+  TOrder = record
+    OrderID: Integer;
+    Items: TArray<TOrderItem>;
+  end;
+
+procedure GetOrderItems(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Return array data for detail
+  AData := TVirtualArrayData<TOrderItem>.Create(Orders[ARow].Items);
+end;
+```
+
+## Best Practices
+
+1. **Set OwnsData := True** so grid automatically frees detail data
+2. **Use OnNewDetail** to customize newly created detail grids
+3. **Enable AlwaysExpand** when you can't determine if detail exists
+4. **Style each level** differently for visual hierarchy
+5. **Add totals** to detail grids for better insight
+
+## Next Steps
+
+- Learn about [Database Grid](/examples/database-grid) basics
+- Explore [Custom Bands](/examples/custom-bands) for headers/footers
+- See [Themes](/examples/themes) for styling
+
+## Related Examples
+
+- [Database Grid](/examples/database-grid)
+- [Dataset Binding](/examples/dataset-binding)
+- [Custom Bands](/examples/custom-bands)

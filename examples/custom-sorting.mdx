@@ -1,0 +1,515 @@
+---
+title: "Custom Sorting Example"
+description: "Implement column sorting by clicking headers with custom sort logic"
+---
+
+## Overview
+
+TeeGrid supports custom column sorting by clicking on column headers. You can implement your own sort logic for any data type or structure.
+
+## Basic Sortable Header
+
+### Enabling Sorting
+
+```pascal
+uses
+  Tee.Grid.Header, Tee.Grid.Columns;
+
+procedure TFormCustomSorting.FormCreate(Sender: TObject);
+begin
+  // Enable header sorting
+  TeeGrid1.Header.Sortable := True;
+  
+  // Create and assign sort render
+  TeeGrid1.Header.SortRender := CreateSortable;
+  
+  // Set grid data
+  TeeGrid1.Data := TVirtualArrayData<TLocation>.Create(Locations);
+end;
+```
+
+### Creating the Sortable Header
+
+```pascal
+function TFormCustomSorting.CreateSortable: TSortableHeader;
+begin
+  result := TSortableHeader.Create(TeeGrid1.Header.Changed);
+  
+  // Optional: Customize appearance
+  result.Format.Brush.Color := TColors.Red;
+  result.Format.Stroke.Show;
+  
+  // Set custom events
+  result.OnCanSort := CanSortBy;
+  result.OnSortBy := SortBy;
+  result.OnSortState := SortState;
+end;
+```
+
+## Implementing Sort Events
+
+### OnCanSort - Control Which Columns Are Sortable
+
+```pascal
+procedure TFormCustomSorting.CanSortBy(const AColumn: TColumn;
+  var CanSort: Boolean);
+begin
+  // Only allow sorting on specific columns
+  CanSort := (AColumn <> nil) and
+             (
+               (AColumn.Header.Text = 'Name') or
+               (AColumn.Header.Text = 'Country')
+             );
+end;
+```
+
+### OnSortState - Return Current Sort State
+
+```pascal
+type
+  TLastSorted = record
+  public
+    Column: TColumn;
+    Ascending: Boolean;
+  end;
+
+var
+  LastSorted: TLastSorted;
+
+procedure TFormCustomSorting.SortState(const AColumn: TColumn;
+  var State: TSortState);
+begin
+  if AColumn = LastSorted.Column then
+    if LastSorted.Ascending then
+      State := TSortState.Ascending
+    else
+      State := TSortState.Descending
+  else
+    State := TSortState.None;
+end;
+```
+
+### OnSortBy - Perform the Sort
+
+```pascal
+procedure TFormCustomSorting.SortBy(Sender: TObject; const AColumn: TColumn);
+var
+  tmp: TSortState;
+begin
+  // Get current sort order
+  SortState(AColumn, tmp);
+  
+  // Toggle order (Ascending <-> Descending)
+  LastSorted.Ascending := tmp <> TSortState.Ascending;
+  
+  // Sort the data
+  SortData(AColumn, LastSorted.Ascending);
+  
+  // Remember last sorted column
+  LastSorted.Column := AColumn;
+end;
+```
+
+## Custom Sort Implementation
+
+### Using TComparer for Arrays
+
+```pascal
+uses
+  System.Generics.Collections, System.Generics.Defaults;
+
+type
+  TLocation = record
+  public
+    Name: String;
+    Country: String;
+  end;
+  
+  TLocationField = (Name, Country);
+  
+  TLocationComparer = class(TComparer<TLocation>)
+  public
+    Ascending: Boolean;
+    Field: TLocationField;
+    function Compare(const Left, Right: TLocation): Integer; override;
+  end;
+
+function TLocationComparer.Compare(const Left, Right: TLocation): Integer;
+var
+  A, B: String;
+begin
+  if Field = TLocationField.Name then
+  begin
+    A := Left.Name;
+    B := Right.Name;
+  end
+  else
+  begin
+    A := Left.Country;
+    B := Right.Country;
+  end;
+  
+  if Ascending then
+    result := CompareText(A, B)
+  else
+    result := CompareText(B, A);
+end;
+
+procedure TFormCustomSorting.SortData(const AColumn: TColumn;
+  const Ascending: Boolean);
+var
+  Comparer: TLocationComparer;
+begin
+  Comparer := TLocationComparer.Create;
+  try
+    Comparer.Ascending := Ascending;
+    
+    if AColumn.Header.Text = 'Name' then
+      Comparer.Field := TLocationField.Name
+    else
+      Comparer.Field := TLocationField.Country;
+    
+    // Sort the array in place
+    TArray.Sort<TLocation>(Locations, Comparer);
+  finally
+    Comparer.Free;
+  end;
+end;
+```
+
+## Complete Example
+
+From `Unit_Custom_Sorting.pas`:
+
+```pascal
+unit Unit_Custom_Sorting;
+
+interface
+
+uses
+  System.SysUtils, FMX.Forms, FMX.StdCtrls, FMX.Layouts,
+  FMXTee.Control, FMXTee.Grid,
+  Tee.Grid.Header, Tee.Grid.Columns, Tee.GridData.Rtti;
+
+type
+  TLastSorted = record
+  public
+    Column: TColumn;
+    Ascending: Boolean;
+  end;
+  
+  TFormCustomSorting = class(TForm)
+    TeeGrid1: TTeeGrid;
+    Label1: TLabel;
+    procedure FormCreate(Sender: TObject);
+  private
+    LastSorted: TLastSorted;
+    procedure CanSortBy(const AColumn: TColumn; var CanSort: Boolean);
+    function CreateSortable: TSortableHeader;
+    procedure SortBy(Sender: TObject; const AColumn: TColumn);
+    procedure SortData(const AColumn: TColumn; const Ascending: Boolean);
+    procedure SortState(const AColumn: TColumn; var State: TSortState);
+  end;
+
+implementation
+
+uses
+  System.Generics.Collections, System.Generics.Defaults;
+
+type
+  TLocation = record
+  public
+    Name: String;
+    Country: String;
+  end;
+
+var
+  Locations: TArray<TLocation>;
+
+procedure AddRandomData;
+begin
+  SetLength(Locations, 10);
+  
+  Locations[0].Name := 'New York';
+  Locations[1].Name := 'Barcelona';
+  Locations[2].Name := 'Tokyo';
+  Locations[3].Name := 'Sao Paulo';
+  Locations[4].Name := 'Santa Cruz';
+  Locations[5].Name := 'Oslo';
+  Locations[6].Name := 'Camberra';
+  Locations[7].Name := 'Delhi';
+  Locations[8].Name := 'Montreal';
+  Locations[9].Name := 'Beijing';
+  
+  Locations[0].Country := 'USA';
+  Locations[1].Country := 'Catalonia';
+  Locations[2].Country := 'Japan';
+  Locations[3].Country := 'Brazil';
+  Locations[4].Country := 'USA';
+  Locations[5].Country := 'Norway';
+  Locations[6].Country := 'Australia';
+  Locations[7].Country := 'India';
+  Locations[8].Country := 'Canada';
+  Locations[9].Country := 'China';
+end;
+
+procedure TFormCustomSorting.FormCreate(Sender: TObject);
+begin
+  AddRandomData;
+  
+  // Enable header sorting
+  TeeGrid1.Header.Sortable := True;
+  TeeGrid1.Header.SortRender := CreateSortable;
+  
+  // Bind data
+  TeeGrid1.Data := TVirtualArrayData<TLocation>.Create(Locations);
+end;
+
+function TFormCustomSorting.CreateSortable: TSortableHeader;
+begin
+  result := TSortableHeader.Create(TeeGrid1.Header.Changed);
+  
+  // Cosmetic customization
+  result.Format.Brush.Color := TColors.Red;
+  result.Format.Stroke.Show;
+  
+  // Set events
+  result.OnCanSort := CanSortBy;
+  result.OnSortBy := SortBy;
+  result.OnSortState := SortState;
+end;
+
+procedure TFormCustomSorting.CanSortBy(const AColumn: TColumn;
+  var CanSort: Boolean);
+begin
+  CanSort := (AColumn <> nil) and
+             (
+               (AColumn.Header.Text = 'Name') or
+               (AColumn.Header.Text = 'Country')
+             );
+end;
+
+procedure TFormCustomSorting.SortState(const AColumn: TColumn;
+  var State: TSortState);
+begin
+  if AColumn = LastSorted.Column then
+    if LastSorted.Ascending then
+      State := TSortState.Ascending
+    else
+      State := TSortState.Descending
+  else
+    State := TSortState.None;
+end;
+
+procedure TFormCustomSorting.SortBy(Sender: TObject; const AColumn: TColumn);
+var
+  tmp: TSortState;
+begin
+  SortState(AColumn, tmp);
+  LastSorted.Ascending := tmp <> TSortState.Ascending;
+  SortData(AColumn, LastSorted.Ascending);
+  LastSorted.Column := AColumn;
+end;
+
+type
+  TLocationField = (Name, Country);
+  
+  TLocationComparer = class(TComparer<TLocation>)
+  public
+    Ascending: Boolean;
+    Field: TLocationField;
+    function Compare(const Left, Right: TLocation): Integer; override;
+  end;
+
+function TLocationComparer.Compare(const Left, Right: TLocation): Integer;
+var
+  A, B: String;
+begin
+  if Field = TLocationField.Name then
+  begin
+    A := Left.Name;
+    B := Right.Name;
+  end
+  else
+  begin
+    A := Left.Country;
+    B := Right.Country;
+  end;
+  
+  if Ascending then
+    result := CompareText(A, B)
+  else
+    result := CompareText(B, A);
+end;
+
+procedure TFormCustomSorting.SortData(const AColumn: TColumn;
+  const Ascending: Boolean);
+var
+  Comparer: TLocationComparer;
+begin
+  Comparer := TLocationComparer.Create;
+  try
+    Comparer.Ascending := Ascending;
+    
+    if AColumn.Header.Text = 'Name' then
+      Comparer.Field := TLocationField.Name
+    else
+      Comparer.Field := TLocationField.Country;
+    
+    TArray.Sort<TLocation>(Locations, Comparer);
+  finally
+    Comparer.Free;
+  end;
+end;
+
+end.
+```
+
+## Automatic Sorting with TeeBI
+
+<Info>
+  For automatic sorting without custom code, see the TeeBI demos. The `BI.GridData.pas` unit provides built-in sorting functionality.
+</Info>
+
+```pascal
+uses
+  BI.Data.DB, BI.Grid.Data;
+
+// TeeBI provides automatic sorting
+TeeGrid1.Data := TBIGridData.FromList<TPerson>(MyPersons);
+```
+
+## Database Sorting
+
+For database grids, use the sortable dataset helpers:
+
+```pascal
+uses
+  Tee.GridData.DB.Sortable;
+
+// ClientDataSet
+TSortableClientDataset.CreateSortable(TeeGrid1.Grid, ClientDataSet1);
+
+// FireDAC
+TSortableFireDACDataset.CreateSortable(TeeGrid1.Grid, FDMemTable1);
+```
+
+See the [Database Grid](/examples/database-grid) example for details.
+
+## Visual Indicators
+
+The `TSortableHeader` automatically displays:
+- ▲ Triangle pointing up for ascending sort
+- ▼ Triangle pointing down for descending sort
+- No indicator for unsorted columns
+
+## Key Concepts
+
+### TSortState Enum
+
+```pascal
+type
+  TSortState = (None, Ascending, Descending);
+```
+
+### Sort Events Flow
+
+1. User clicks column header
+2. `OnCanSort` - Check if column is sortable
+3. `OnSortBy` - Perform the sort
+4. `OnSortState` - Return current state (for visual indicator)
+
+### Custom Comparer Pattern
+
+```pascal
+type
+  TMyComparer = class(TComparer<TMyType>)
+  public
+    Ascending: Boolean;
+    function Compare(const Left, Right: TMyType): Integer; override;
+  end;
+```
+
+## Advanced Usage
+
+### Multi-Column Sort
+
+```pascal
+type
+  TSortInfo = record
+    Column: TColumn;
+    Ascending: Boolean;
+  end;
+
+var
+  SortColumns: TArray<TSortInfo>;
+
+// Sort by multiple columns (e.g., Country then Name)
+procedure MultiColumnSort;
+begin
+  // Primary: Country
+  // Secondary: Name
+  // Implementation left as exercise
+end;
+```
+
+### Case-Sensitive Sort
+
+```pascal
+function TLocationComparer.Compare(const Left, Right: TLocation): Integer;
+begin
+  if Ascending then
+    result := CompareStr(Left.Name, Right.Name)  // Case-sensitive
+  else
+    result := CompareStr(Right.Name, Left.Name);
+end;
+```
+
+### Numeric Sort
+
+```pascal
+function TMyComparer.Compare(const Left, Right: TMyRecord): Integer;
+begin
+  if Ascending then
+  begin
+    if Left.Value < Right.Value then result := -1
+    else if Left.Value > Right.Value then result := 1
+    else result := 0;
+  end
+  else
+  begin
+    if Left.Value > Right.Value then result := -1
+    else if Left.Value < Right.Value then result := 1
+    else result := 0;
+  end;
+end;
+```
+
+## Features Demonstrated
+
+- Enabling sortable column headers
+- Custom sort logic with TComparer
+- Visual sort indicators (▲▼)
+- Controlling which columns are sortable
+- Toggling between ascending/descending
+- Sorting arrays in place
+
+## Best Practices
+
+1. **Implement OnCanSort** to control which columns can be sorted
+2. **Track sort state** to toggle between ascending/descending
+3. **Use TComparer** for clean, reusable sort logic
+4. **Sort in place** when possible for best performance
+5. **Refresh grid** after sorting (usually automatic)
+
+## Next Steps
+
+- Learn about [Database Grid](/examples/database-grid) for database sorting
+- Explore [Themes](/examples/themes) to customize sort indicators
+- See [Performance](/examples/performance) for large dataset sorting
+
+## Related Examples
+
+- [Database Grid](/examples/database-grid)
+- [Array Binding](/examples/array-binding)
+- [List Binding](/examples/list-binding)

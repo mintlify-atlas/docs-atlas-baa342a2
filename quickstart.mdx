@@ -1,80 +1,390 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get started with TeeGrid in minutes
 ---
 
-## Get started in three steps
+Get your first TeeGrid up and running with this quick tutorial. We'll create a simple grid, bind it to data, and customize it.
 
-Get your documentation site running locally and make your first customization.
+<Info>
+This tutorial works with both VCL and FireMonkey frameworks. Code examples show both variants where they differ.
+</Info>
 
-### Step 1: Set up your local environment
+## Prerequisites
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+Before you begin, make sure you have:
 
-### Step 2: Deploy your changes
+- RAD Studio, Delphi, C++ Builder, or Lazarus installed
+- TeeGrid packages installed (see [Installation](/installation))
+- A new VCL or FireMonkey application
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+## Create Your First Grid
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+<Steps>
+  <Step title="Add TeeGrid to your form">
+    <Tabs>
+      <Tab title="VCL">
+        1. Open the **Tool Palette** in RAD Studio or Delphi
+        2. Find **TTeeGrid** in the **TeeGrid** category
+        3. Drop it onto your form
+        4. Resize it to fill the form or use `Align := alClient`
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+        Add the required units to your `uses` clause:
 
-### Step 3: Go live
+        ```pascal
+        uses
+          VCLTee.Grid, Tee.GridData.Rtti;
+        ```
+      </Tab>
+      
+      <Tab title="FireMonkey">
+        1. Open the **Tool Palette** in RAD Studio or Delphi
+        2. Find **TTeeGrid** in the **TeeGrid** category
+        3. Drop it onto your form
+        4. Resize it to fill the form or use `Align := TAlignLayout.Client`
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+        Add the required units to your `uses` clause:
 
-## Next steps
+        ```pascal
+        uses
+          FMXTee.Grid, Tee.GridData.Rtti;
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
 
-Now that you have your docs running, explore these key features:
+  <Step title="Define your data structure">
+    Create a simple record or class to hold your data:
+
+    ```pascal
+    type
+      TPerson = record
+        Name: string;
+        Age: Integer;
+        Email: string;
+        City: string;
+      end;
+    ```
+
+    You can also use classes instead of records. TeeGrid works with both.
+  </Step>
+
+  <Step title="Create and populate data">
+    Create an array or list and fill it with data:
+
+    ```pascal
+    var
+      People: TArray<TPerson>;
+      I: Integer;
+    begin
+      // Create array with sample data
+      SetLength(People, 10);
+      
+      for I := 0 to 9 do
+      begin
+        People[I].Name := 'Person ' + IntToStr(I + 1);
+        People[I].Age := 20 + Random(50);
+        People[I].Email := 'person' + IntToStr(I + 1) + '@example.com';
+        People[I].City := 'City ' + IntToStr(Random(5) + 1);
+      end;
+    ```
+
+    <Accordion title="Using TList instead of TArray">
+      You can also use `TList<TPerson>`:
+
+      ```pascal
+      uses
+        System.Generics.Collections;
+
+      var
+        People: TList<TPerson>;
+        Person: TPerson;
+        I: Integer;
+      begin
+        People := TList<TPerson>.Create;
+        try
+          for I := 0 to 9 do
+          begin
+            Person.Name := 'Person ' + IntToStr(I + 1);
+            Person.Age := 20 + Random(50);
+            Person.Email := 'person' + IntToStr(I + 1) + '@example.com';
+            Person.City := 'City ' + IntToStr(Random(5) + 1);
+            People.Add(Person);
+          end;
+          
+          TeeGrid1.Data := TVirtualListData<TPerson>.Create(People);
+        finally
+          People.Free;
+        end;
+      end;
+      ```
+    </Accordion>
+  </Step>
+
+  <Step title="Bind data to the grid">
+    Connect your data to TeeGrid using a virtual data adapter:
+
+    ```pascal
+    // For arrays
+    TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(People);
+    ```
+
+    That's it! Run your application and you'll see a grid with 4 columns (Name, Age, Email, City) and 10 rows.
+
+    <Note>
+    TeeGrid automatically creates columns from your record's fields using RTTI (Runtime Type Information). No manual column setup required!
+    </Note>
+  </Step>
+</Steps>
+
+## Customize Your Grid
+
+Now let's add some common customizations:
+
+### Enable Cell Editing
+
+```pascal
+// Allow users to edit cells
+TeeGrid1.ReadOnly := False;
+
+// Auto-start editing on single click
+TeeGrid1.Editing.AutoEdit := True;
+
+// Or require double-click to edit (default)
+TeeGrid1.Editing.DoubleClick := True;
+```
+
+### Add Row Alternating Colors
+
+```pascal
+// Enable alternating row colors
+TeeGrid1.Rows.Alternate.Visible := True;
+TeeGrid1.Rows.Alternate.Brush.Color := $00F0F0F0; // Light gray
+```
+
+### Customize Column Appearance
+
+```pascal
+// Right-align the Age column
+TeeGrid1.Columns[1].TextAlignment := TColumnTextAlign.Custom;
+TeeGrid1.Columns[1].TextAlign.Horizontal := THorizontalAlign.Right;
+
+// Set custom column width
+TeeGrid1.Columns[0].Width.Value := 150;
+
+// Hide the Email column
+TeeGrid1.Columns[2].Visible := False;
+```
+
+### Enable Sorting
+
+```pascal
+// Make headers clickable for sorting
+TeeGrid1.Header.Sortable := True;
+```
+
+## Complete Example
+
+Here's a complete working example that creates a grid with sample data:
+
+<Tabs>
+  <Tab title="VCL">
+    ```pascal
+    unit Unit1;
+
+    interface
+
+    uses
+      Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+      System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+      VCLTee.Grid, Tee.GridData.Rtti;
+
+    type
+      TPerson = record
+        Name: string;
+        Age: Integer;
+        Email: string;
+        City: string;
+      end;
+
+      TForm1 = class(TForm)
+        TeeGrid1: TTeeGrid;
+        procedure FormCreate(Sender: TObject);
+      private
+        People: TArray<TPerson>;
+      end;
+
+    var
+      Form1: TForm1;
+
+    implementation
+
+    {$R *.dfm}
+
+    procedure TForm1.FormCreate(Sender: TObject);
+    var
+      I: Integer;
+    begin
+      // Create sample data
+      SetLength(People, 100);
+      for I := 0 to 99 do
+      begin
+        People[I].Name := 'Person ' + IntToStr(I + 1);
+        People[I].Age := 20 + Random(50);
+        People[I].Email := 'person' + IntToStr(I + 1) + '@example.com';
+        People[I].City := 'City ' + IntToStr(Random(5) + 1);
+      end;
+
+      // Bind to grid
+      TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(People);
+
+      // Customize
+      TeeGrid1.ReadOnly := False;
+      TeeGrid1.Rows.Alternate.Visible := True;
+      TeeGrid1.Header.Sortable := True;
+    end;
+
+    end.
+    ```
+  </Tab>
+
+  <Tab title="FireMonkey">
+    ```pascal
+    unit Unit1;
+
+    interface
+
+    uses
+      System.SysUtils, System.Types, System.UITypes, System.Classes,
+      System.Variants, FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics,
+      FMX.Dialogs, FMXTee.Grid, Tee.GridData.Rtti;
+
+    type
+      TPerson = record
+        Name: string;
+        Age: Integer;
+        Email: string;
+        City: string;
+      end;
+
+      TForm1 = class(TForm)
+        TeeGrid1: TTeeGrid;
+        procedure FormCreate(Sender: TObject);
+      private
+        People: TArray<TPerson>;
+      end;
+
+    var
+      Form1: TForm1;
+
+    implementation
+
+    {$R *.fmx}
+
+    procedure TForm1.FormCreate(Sender: TObject);
+    var
+      I: Integer;
+    begin
+      // Create sample data
+      SetLength(People, 100);
+      for I := 0 to 99 do
+      begin
+        People[I].Name := 'Person ' + IntToStr(I + 1);
+        People[I].Age := 20 + Random(50);
+        People[I].Email := 'person' + IntToStr(I + 1) + '@example.com';
+        People[I].City := 'City ' + IntToStr(Random(5) + 1);
+      end;
+
+      // Bind to grid
+      TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(People);
+
+      // Customize
+      TeeGrid1.ReadOnly := False;
+      TeeGrid1.Rows.Alternate.Visible := True;
+      TeeGrid1.Header.Sortable := True;
+    end;
+
+    end.
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+Now that you have a working grid, explore more features:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Data Binding" icon="database" href="/concepts/data-binding">
+    Learn about different data sources (DataSets, arrays, lists, custom)
+  </Card>
+  
+  <Card title="Cell Editing" icon="pen" href="/features/cell-editing">
+    Add custom editors, validation, and edit events
+  </Card>
+  
+  <Card title="Themes" icon="palette" href="/features/themes">
+    Customize the visual appearance with themes
+  </Card>
+  
+  <Card title="Examples" icon="code" href="/examples/basic-grid">
+    Browse complete working examples
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Columns are not showing">
+    Make sure you're using a data type (record or class) with public fields or published properties. TeeGrid uses RTTI to discover columns automatically.
+
+    ```pascal
+    // Good - public fields
+    type
+      TPerson = record
+        Name: string;    // Public by default in records
+        Age: Integer;
+      end;
+
+    // Good - published properties
+    type
+      TPerson = class
+      published
+        property Name: string read FName write FName;
+        property Age: Integer read FAge write FAge;
+      end;
+    ```
+  </Accordion>
+
+  <Accordion title="Grid is empty">
+    Check that:
+    1. You assigned data to `TeeGrid1.Data`
+    2. Your data array/list contains items
+    3. You called `Create()` on the virtual data adapter
+
+    ```pascal
+    // Make sure the data source has items
+    if Length(People) > 0 then
+      TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(People);
+    ```
+  </Accordion>
+
+  <Accordion title="Cannot edit cells">
+    To enable editing:
+    1. Set `TeeGrid1.ReadOnly := False`
+    2. Make sure individual columns aren't read-only
+    3. The data type must support writing (not const)
+
+    ```pascal
+    TeeGrid1.ReadOnly := False;
+    TeeGrid1.Editing.AutoEdit := True;  // Optional: edit on single click
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## What You've Learned
+
+- How to add TTeeGrid to a form
+- How to create and bind data using arrays
+- How to enable basic features like editing and sorting
+- How to customize appearance with alternating row colors
+
+Ready to dive deeper? Check out the [Core Concepts](/concepts/grid-architecture) to understand TeeGrid's architecture.

@@ -1,0 +1,501 @@
+---
+title: "Arrays and Lists"
+description: "Bind TArray<T> and TList<T> to TeeGrid using RTTI for automatic column generation"
+---
+
+## Overview
+
+TeeGrid can automatically bind to generic arrays and lists using runtime type information (RTTI). The `TVirtualData<T>` class introspects your records and classes to generate columns automatically.
+
+<Info>
+TeeGrid supports `TArray<T>`, `TList<T>`, `TObjectList<T>`, and even single record/object instances.
+</Info>
+
+## Array of Records
+
+The most common pattern — display an array of records:
+
+```pascal
+uses Tee.GridData.Rtti;
+
+type
+  TPerson = record
+    Name: String;
+    BirthDate: TDateTime;
+    Children: Integer;
+    Height: Single;
+    IsDeveloper: Boolean;
+  end;
+
+var
+  MyData: TArray<TPerson>;
+begin
+  SetLength(MyData, 10);
+  // ... fill MyData ...
+  
+  // Automatic binding with column generation
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(MyData);
+  
+  // Alternative syntax (same result)
+  TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(MyData);
+end;
+```
+
+<Tip>
+`TVirtualArrayData<T>` is just an alias for `TVirtualData<TArray<T>>` — use whichever reads better.
+</Tip>
+
+## Nested Records
+
+TeeGrid automatically expands nested record fields:
+
+```pascal
+type
+  TAddress = record
+    Street: String;
+    Number: Integer;
+  end;
+  
+  TPerson = record
+    Name: String;
+    Address: TAddress;  // <-- Nested record
+    Children: Integer;
+  end;
+
+var
+  MyPersons: TArray<TPerson>;
+begin
+  SetLength(MyPersons, 10);
+  
+  TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(MyPersons);
+  
+  // Columns are created for:
+  // - Name
+  // - Address.Street
+  // - Address.Number
+  // - Children
+end;
+```
+
+## Array of Classes
+
+Bind arrays of object instances:
+
+```pascal
+type
+  TCar = class
+  public
+    Brand: String;
+    Wheels: Word;
+    Speed: Double;
+  end;
+
+var
+  MyCars: TArray<TCar>;
+  t: Integer;
+begin
+  SetLength(MyCars, 10);
+  
+  // Create instances
+  for t := 0 to High(MyCars) do
+    MyCars[t] := TCar.Create;
+  
+  // Bind to grid
+  TeeGrid1.Data := TVirtualData<TArray<TCar>>.Create(MyCars);
+  
+  // Cleanup (important!)
+  for t := Low(MyCars) to High(MyCars) do
+    MyCars[t].Free;
+end;
+```
+
+<Warning>
+**Memory Management**: When using arrays of classes, you're responsible for creating and freeing object instances. TeeGrid does not own the objects.
+</Warning>
+
+## TList and TObjectList
+
+Bind generic list types:
+
+```pascal
+uses System.Generics.Collections, Tee.GridData.Rtti;
+
+var
+  MyPersons: TList<TPerson>;
+begin
+  MyPersons := TList<TPerson>.Create;
+  
+  // Add items
+  // ...
+  
+  // Bind to grid
+  TeeGrid1.Data := TVirtualListData<TPerson>.Create(MyPersons);
+  
+  // Alternative syntax
+  TeeGrid1.Data := TVirtualData<TList<TPerson>>.Create(MyPersons);
+  
+  // Cleanup
+  MyPersons.Free;
+end;
+```
+
+For object lists with automatic cleanup:
+
+```pascal
+var
+  MyCars: TObjectList<TCar>;
+begin
+  MyCars := TObjectList<TCar>.Create;  // Owns objects
+  
+  // Add cars
+  MyCars.Add(TCar.Create);
+  
+  // Bind to grid
+  TeeGrid1.Data := TVirtualObjectListData<TCar>.Create(MyCars);
+  
+  // Cleanup (automatically frees all TCar instances)
+  MyCars.Free;
+end;
+```
+
+## Simple Type Arrays
+
+Display arrays of primitive types:
+
+```pascal
+var
+  MyIntegers: TArray<Integer>;
+  MyFloats: TArray<Single>;
+  MyStrings: TArray<String>;
+  t: Integer;
+begin
+  // Array of Integer
+  SetLength(MyIntegers, 100);
+  for t := 0 to High(MyIntegers) do
+    MyIntegers[t] := Random(1000);
+  
+  TeeGrid1.Data := TVirtualArrayData<Integer>.Create(MyIntegers);
+  
+  // Array of Single
+  SetLength(MyFloats, 200);
+  for t := 0 to High(MyFloats) do
+    MyFloats[t] := Random(1000) * 0.01;
+  
+  TeeGrid1.Data := TVirtualData<TArray<Single>>.Create(MyFloats);
+  
+  // Array of String
+  SetLength(MyStrings, 10);
+  for t := 0 to High(MyStrings) do
+    MyStrings[t] := 'Item ' + IntToStr(t);
+  
+  TeeGrid1.Data := TVirtualData<TArray<String>>.Create(MyStrings);
+end;
+```
+
+## Single Records
+
+Display a single record or object instance:
+
+```pascal
+var
+  MyPerson: TPerson;
+begin
+  MyPerson.Name := 'John';
+  MyPerson.Children := 2;
+  MyPerson.Height := 1.75;
+  
+  // Grid shows one row with all fields as columns
+  TeeGrid1.Data := TVirtualData<TPerson>.Create(MyPerson);
+end;
+```
+
+## Visibility Control
+
+Control which fields and properties appear as columns:
+
+```pascal
+const
+  PublicAndPublished = [TMemberVisibility.mvPublic,
+                        TMemberVisibility.mvPublished];
+
+var
+  MyPersons: TList<TPerson>;
+begin
+  MyPersons := TList<TPerson>.Create;
+  
+  // Only show public and published members
+  TeeGrid1.Data := TVirtualListData<TPerson>.Create(
+    MyPersons,
+    PublicAndPublished,
+    TRttiMembers.Both,  // Fields and Properties
+    False               // Don't include ancestor members
+  );
+end;
+```
+
+### Constructor Parameters
+
+```pascal
+TVirtualData<T>.Create(
+  var AData: T,
+  const AVisibility: TVisibility = [mvPublic, mvPublished],
+  const AMembers: TRttiMembers = TRttiMembers.Both,
+  const AAncestor: Boolean = False
+);
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `AData` | Reference to your data (array, list, or record) |
+| `AVisibility` | Member visibility filter (public, published, etc.) |
+| `AMembers` | Show fields, properties, or both |
+| `AAncestor` | Include members from ancestor classes |
+
+## Ancestor Classes
+
+Include or exclude inherited members:
+
+```pascal
+type
+  TVehicle = class
+  public
+    Brand: String;
+  end;
+  
+  TCar = class(TVehicle)  // Inherits from TVehicle
+  public
+    Wheels: Word;
+    Speed: Double;
+  end;
+
+var
+  MyCars: TObjectList<TCar>;
+begin
+  MyCars := TObjectList<TCar>.Create;
+  
+  // Show only TCar members (exclude Brand)
+  TeeGrid1.Data := TVirtualObjectListData<TCar>.Create(
+    MyCars,
+    [mvPublic, mvPublished],
+    TRttiMembers.Both,
+    False  // <-- AAncestor = False
+  );
+  
+  // Show all members including Brand from TVehicle
+  TeeGrid1.Data := TVirtualObjectListData<TCar>.Create(
+    MyCars,
+    [mvPublic, mvPublished],
+    TRttiMembers.Both,
+    True   // <-- AAncestor = True
+  );
+end;
+```
+
+## 2D Arrays (Matrix Data)
+
+Display multi-dimensional arrays:
+
+```pascal
+var
+  Matrix: TArray<TArray<Integer>>;
+  Row, Col: Integer;
+begin
+  SetLength(Matrix, 10);  // 10 rows
+  
+  for Row := 0 to High(Matrix) do
+  begin
+    SetLength(Matrix[Row], 5);  // 5 columns per row
+    
+    for Col := 0 to High(Matrix[Row]) do
+      Matrix[Row][Col] := Row * Col;
+  end;
+  
+  TeeGrid1.Data := TVirtualArray2DData<Integer>.Create(Matrix);
+end;
+```
+
+## Custom Cell Editors
+
+Assign custom editor controls for specific columns:
+
+```pascal
+uses Vcl.ComCtrls, Vcl.StdCtrls;
+
+var
+  MyData: TArray<TPerson>;
+begin
+  SetLength(MyData, 10);
+  TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(MyData);
+  
+  // Use date picker for BirthDate column
+  TeeGrid1.Columns['BirthDate'].EditorClass := TDateTimePicker;
+  
+  // Use combo box for Children column
+  TeeGrid1.Columns['Children'].EditorClass := TComboBox;
+  
+  // Customize editor when shown
+  TeeGrid1.OnCellEditing := GridCellEditing;
+end;
+
+procedure TMyForm.GridCellEditing(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer
+);
+var
+  Combo: TComboBox;
+  t: Integer;
+begin
+  if AColumn = TeeGrid1.Columns['Children'] then
+  begin
+    Combo := AEditor as TComboBox;
+    Combo.Clear;
+    
+    for t := 0 to 15 do
+      Combo.Items.Add(t.ToString);
+    
+    Combo.ItemIndex := Combo.Items.IndexOf(
+      TeeGrid1.Data.AsString(AColumn, ARow)
+    );
+  end;
+end;
+```
+
+## Data Type Support
+
+TeeGrid automatically recognizes and formats:
+
+- **Boolean**: Checkbox rendering
+- **TDateTime**: Date formatting
+- **Integer, Int64**: Right-aligned numeric formatting
+- **Single, Double, Extended**: Decimal formatting
+- **String**: Text rendering
+- **Enumerations**: Ordinal display
+
+## Helper Type Aliases
+
+TeeGrid provides convenient type aliases:
+
+```pascal
+// These are equivalent:
+TVirtualArrayData<T>         = TVirtualData<TArray<T>>
+TVirtualArray2DData<T>       = TVirtualArrayData<TArray<T>>
+TVirtualListData<T>          = TVirtualData<TList<T>>
+TVirtualObjectListData<T>    = TVirtualData<TObjectList<T>>
+```
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Large Arrays">
+    For arrays with thousands of items:
+    
+    - TeeGrid uses virtual scrolling (only visible rows are rendered)
+    - Memory usage scales with array size, not visible rows
+    - Consider pagination for very large datasets
+  </Accordion>
+  
+  <Accordion title="Column Width Calculation">
+    Speed up initial display:
+    
+    ```pascal
+    // Disable automatic width calculation
+    TeeGrid1.Columns.AutoWidth := False;
+    
+    // Set default width for all columns
+    TeeGrid1.Columns.DefaultWidth := 100;
+    ```
+  </Accordion>
+  
+  <Accordion title="Row Height">
+    Optimize row height for better scrolling:
+    
+    ```pascal
+    // Fixed height for all rows (fastest)
+    TeeGrid1.Rows.Height.Value := 24;
+    
+    // Automatic height per row (slower, for multi-line text)
+    TeeGrid1.Rows.Height.Automatic := True;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+Here's a full working example:
+
+```pascal
+unit Unit_Array;
+
+interface
+
+uses
+  System.Classes, System.SysUtils,
+  Vcl.Forms, VCLTee.Grid,
+  Tee.GridData.Rtti;
+
+type
+  TPerson = record
+    Name: String;
+    BirthDate: TDateTime;
+    Children: Integer;
+    Height: Single;
+    IsDeveloper: Boolean;
+  end;
+  
+  TFormArray = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  end;
+
+var
+  MyData: TArray<TPerson>;
+
+implementation
+
+procedure TFormArray.FormCreate(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyData, 10);
+  
+  // Fill with sample data
+  for t := 0 to High(MyData) do
+  begin
+    MyData[t].Name := 'Person ' + IntToStr(t);
+    MyData[t].BirthDate := EncodeDate(1980 + Random(20), 1 + Random(12), 1 + Random(28));
+    MyData[t].Children := Random(5);
+    MyData[t].IsDeveloper := Random(10) < 5;
+    MyData[t].Height := 1.5 + Random * 0.5;
+  end;
+  
+  // Bind to grid
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(MyData);
+  
+  // Enable automatic multi-line text in cells
+  TeeGrid1.Rows.Height.Automatic := True;
+end;
+
+end.
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DataSet Binding" icon="database" href="/data/datasets">
+    Connect to TDataSet and TDataSource
+  </Card>
+  
+  <Card title="String Grids" icon="table" href="/data/strings">
+    Use TStringGrid-style string arrays
+  </Card>
+  
+  <Card title="Custom Data" icon="code" href="/data/custom-virtual-data">
+    Create custom TVirtualData implementations
+  </Card>
+  
+  <Card title="Columns API" icon="columns" href="/api/tcolumn">
+    Customize column appearance and behavior
+  </Card>
+</CardGroup>

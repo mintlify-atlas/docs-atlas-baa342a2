@@ -1,0 +1,365 @@
+---
+title: 'TCustomTeeGrid'
+description: 'Abstract base class for TeeGrid with core architecture and functionality'
+icon: 'diagram-project'
+---
+
+## Overview
+
+TCustomTeeGrid is the abstract base class for all TeeGrid implementations. It provides the core architecture, data management, and rendering framework that is shared between VCL and FireMonkey versions of TTeeGrid.
+
+<Warning>
+  TCustomTeeGrid is an abstract class and cannot be instantiated directly. Use `TTeeGrid` (VCL or FMX) instead.
+</Warning>
+
+## Architecture
+
+TCustomTeeGrid serves as the foundation for the grid component hierarchy:
+
+```
+TCustomTeeControl (base control)
+  └── TCustomTeeGrid (abstract grid)
+      ├── TVCLTeeGrid (VCL implementation)
+      │   └── TTeeGrid (VCL)
+      └── TFMXTeeGrid (FMX implementation)
+          └── TTeeGrid (FMX)
+```
+
+## Core Properties
+
+### Data Management
+
+<ResponseField name="Data" type="TVirtualData">
+  The virtual data source providing content to the grid. This can be any descendant of TVirtualData including database sources, arrays, lists, or custom data providers.
+</ResponseField>
+
+<ResponseField name="DataSource" type="TComponent">
+  Reference to a component that provides data, typically a TDataSource for database connectivity.
+</ResponseField>
+
+<ResponseField name="Root" type="TRowGroup" readOnly>
+  The main row group that contains all grid data. This is the top-level group in master-detail hierarchies.
+</ResponseField>
+
+<ResponseField name="Current" type="TRowGroup">
+  The currently focused row group. In a simple grid, this is the same as Root. In master-detail grids, this represents the active detail level.
+</ResponseField>
+
+### Visual Structure
+
+<ResponseField name="Cells" type="TTextRender">
+  Defines the rendering properties for grid cells including font, colors, alignment, and padding.
+</ResponseField>
+
+<ResponseField name="Columns" type="TColumns">
+  The collection of columns defining the grid structure. Each column specifies how data is displayed and edited.
+</ResponseField>
+
+<ResponseField name="Rows" type="TRows">
+  Row configuration including default height, alternating row colors, and row selection behavior.
+</ResponseField>
+
+<ResponseField name="Header" type="TColumnHeaderBand">
+  The main column header band configuration.
+</ResponseField>
+
+<ResponseField name="Headers" type="TGridBands">
+  Collection of additional header bands displayed above the grid.
+</ResponseField>
+
+<ResponseField name="Footer" type="TGridBands">
+  Collection of footer bands displayed below the grid.
+</ResponseField>
+
+<ResponseField name="Indicator" type="TIndicator">
+  Configuration for the row indicator column showing current row and edit state.
+</ResponseField>
+
+<ResponseField name="Margins" type="TMargins">
+  Margins around the grid content area.
+</ResponseField>
+
+### Editing
+
+<ResponseField name="Editing" type="TGridEditing">
+  Comprehensive editing configuration including:
+  - `Active` - Whether an editor is currently visible
+  - `AlwaysVisible` - Keep editor always visible
+  - `AutoEdit` - Start editing on keypress
+  - `DoubleClick` - Require double-click to edit
+  - `EnterKey` - Behavior when Enter is pressed (NextCell, NextRow, SameCell)
+  - `EditorClass` - Custom editor class
+</ResponseField>
+
+<ResponseField name="ReadOnly" type="Boolean" default="False">
+  Global read-only flag. When True, all cells are non-editable regardless of column settings.
+</ResponseField>
+
+### Selection
+
+<ResponseField name="Selected" type="TGridSelection">
+  Current selection in the grid including:
+  - Selected cell coordinates
+  - Selected rows
+  - Selected range
+</ResponseField>
+
+## Public Methods
+
+### Display and Rendering
+
+<ParamField path="Paint" type="procedure">
+  Renders the grid content. Override this method in derived classes to customize rendering.
+  
+  **Signature:**
+  ```pascal
+  procedure Paint; override;
+  ```
+</ParamField>
+
+<ParamField path="ClientWidth" type="function">
+  Returns the available width for grid content, excluding scrollbars and margins.
+  
+  **Signature:**
+  ```pascal
+  function ClientWidth: Single; override;
+  ```
+  
+  **Returns:** Available width in pixels
+</ParamField>
+
+<ParamField path="ClientHeight" type="function">
+  Returns the available height for grid content, excluding scrollbars and margins.
+  
+  **Signature:**
+  ```pascal
+  function ClientHeight: Single; override;
+  ```
+  
+  **Returns:** Available height in pixels
+</ParamField>
+
+### Data Operations
+
+<ParamField path="RefreshData" type="procedure">
+  Refreshes the grid display from the data source. Call this when the underlying data has changed.
+  
+  **Signature:**
+  ```pascal
+  procedure RefreshData;
+  ```
+</ParamField>
+
+<ParamField path="CanExpand" type="function">
+  Determines if a row can be expanded to show detail data.
+  
+  **Signature:**
+  ```pascal
+  function CanExpand(const Sender: TRender; const ARow: Integer): Boolean;
+  ```
+  
+  **Parameters:**
+  - `Sender` - The render object requesting expansion
+  - `ARow` - Row index to check
+  
+  **Returns:** True if the row has expandable detail data
+</ParamField>
+
+### Clipboard Operations
+
+<ParamField path="Copy" type="procedure">
+  Copies the selected cells to the clipboard in tab-delimited format.
+  
+  **Signature:**
+  ```pascal
+  procedure Copy(const ASelection: TGridSelection = nil); virtual; abstract;
+  ```
+  
+  **Parameters:**
+  - `ASelection` - Optional specific selection to copy (uses current selection if nil)
+</ParamField>
+
+<ParamField path="PasteSelected" type="procedure">
+  Pastes clipboard content into the selected cells.
+  
+  **Signature:**
+  ```pascal
+  procedure PasteSelected; virtual; abstract;
+  ```
+</ParamField>
+
+### Utility Methods
+
+<ParamField path="Assign" type="procedure">
+  Copies all properties from another grid instance.
+  
+  **Signature:**
+  ```pascal
+  procedure Assign(Source: TPersistent); override;
+  ```
+</ParamField>
+
+<ParamField path="Loaded" type="procedure">
+  Called after the component is loaded from a stream (DFM/FMX file). Override to perform post-load initialization.
+  
+  **Signature:**
+  ```pascal
+  procedure Loaded; override;
+  ```
+</ParamField>
+
+<ParamField path="MouseLeave" type="procedure">
+  Handles mouse leave events. Call when the mouse cursor leaves the grid area.
+  
+  **Signature:**
+  ```pascal
+  procedure MouseLeave;
+  ```
+</ParamField>
+
+## Protected Methods
+
+<Info>
+  These methods are available for descendant classes and advanced customization.
+</Info>
+
+### Editor Management
+
+<ParamField path="StartEditor" type="procedure">
+  Initiates cell editing for the specified column and row.
+  
+  **Signature:**
+  ```pascal
+  procedure StartEditor(const AColumn: TColumn; const ARow: Integer;
+                       const AutoEdit: String = ''); overload; virtual; abstract;
+  procedure StartEditor(const AutoEdit: String = ''); overload;
+  ```
+  
+  **Parameters:**
+  - `AColumn` - Column to edit
+  - `ARow` - Row index to edit
+  - `AutoEdit` - Optional initial text for auto-edit mode
+</ParamField>
+
+<ParamField path="StopEditor" type="procedure">
+  Stops cell editing and commits changes.
+  
+  **Signature:**
+  ```pascal
+  procedure StopEditor; virtual;
+  ```
+</ParamField>
+
+<ParamField path="CancelEditor" type="procedure">
+  Cancels cell editing without committing changes.
+  
+  **Signature:**
+  ```pascal
+  procedure CancelEditor; virtual;
+  ```
+</ParamField>
+
+### Scrolling
+
+<ParamField path="HorizScrollChanged" type="procedure">
+  Called when horizontal scroll position changes.
+  
+  **Signature:**
+  ```pascal
+  procedure HorizScrollChanged(Sender: TObject); virtual; abstract;
+  ```
+</ParamField>
+
+<ParamField path="VertScrollChanged" type="procedure">
+  Called when vertical scroll position changes.
+  
+  **Signature:**
+  ```pascal
+  procedure VertScrollChanged(Sender: TObject); virtual; abstract;
+  ```
+</ParamField>
+
+<ParamField path="CheckScrollLimits" type="procedure">
+  Validates and adjusts scroll positions to stay within valid bounds.
+  
+  **Signature:**
+  ```pascal
+  procedure CheckScrollLimits(var X, Y: Single); virtual; abstract;
+  ```
+</ParamField>
+
+### Data Events
+
+<ParamField path="DataChanged" type="procedure">
+  Called when the data source changes or is refreshed.
+  
+  **Signature:**
+  ```pascal
+  procedure DataChanged; virtual;
+  ```
+</ParamField>
+
+### Input Handling
+
+<ParamField path="Key" type="procedure">
+  Processes keyboard input.
+  
+  **Signature:**
+  ```pascal
+  procedure Key(const AState: TKeyState);
+  ```
+</ParamField>
+
+<ParamField path="Mouse" type="procedure">
+  Processes mouse input.
+  
+  **Signature:**
+  ```pascal
+  procedure Mouse(var AState: TMouseState);
+  ```
+</ParamField>
+
+## Events
+
+<ResponseField name="OnAfterDraw" type="TNotifyEvent">
+  Fired after the grid is painted. Use for custom post-rendering operations.
+</ResponseField>
+
+<ResponseField name="OnSelect" type="TNotifyEvent">
+  Fired when the selection changes.
+</ResponseField>
+
+## Example: Custom Grid Implementation
+
+```pascal
+type
+  TMyCustomGrid = class(TCustomTeeGrid)
+  protected
+    // Override abstract methods
+    procedure CheckScrollLimits(var X, Y: Single); override;
+    function HorizScrollBarHeight: Single; override;
+    procedure HorizScrollChanged(Sender: TObject); override;
+    function VertScrollBarWidth: Single; override;
+    procedure VertScrollChanged(Sender: TObject); override;
+    
+    procedure StartEditor(const AColumn: TColumn; const ARow: Integer;
+                         const AutoEdit: String = ''); override;
+  public
+    procedure Copy(const ASelection: TGridSelection = nil); override;
+    procedure PasteSelected; override;
+    function Painter: TPainter; override;
+    function Height: Single; override;
+    function Width: Single; override;
+  end;
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="TTeeGrid" icon="table" href="/api/teegrid">
+    Main grid component for VCL and FMX
+  </Card>
+  <Card title="TVirtualData" icon="database" href="/api/virtualdata">
+    Abstract data interface
+  </Card>
+</CardGroup>

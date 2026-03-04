@@ -1,0 +1,763 @@
+---
+title: "FireMonkey Framework"
+description: "Using TeeGrid in FireMonkey (FMX) applications for cross-platform development"
+---
+
+## Overview
+
+TeeGrid for FireMonkey provides cross-platform grid components that work across Windows, macOS, Linux, iOS, and Android. The FMX implementation uses Firemonkey's GPU-accelerated rendering for smooth performance on all platforms.
+
+<Note>
+  FMX TeeGrid is implemented in the `FMXTee.Grid` unit and supports all platforms targeted by Embarcadero's FireMonkey framework.
+</Note>
+
+## Installation
+
+Add the FMX units to your project's uses clause:
+
+```pascal
+uses
+  FMXTee.Grid,           // Main TTeeGrid component
+  FMXTee.Control,        // Base control classes
+  FMXTee.Painter,        // FMX rendering
+  Tee.GridData.DB;       // Database support (automatically included)
+```
+
+## Platform Support
+
+FMX TeeGrid is available for all FireMonkey platforms:
+
+<CardGroup cols={3}>
+  <Card title="Desktop" icon="desktop">
+    - Windows (Win32/Win64)
+    - macOS (32-bit/64-bit)
+    - Linux (64-bit)
+  </Card>
+  
+  <Card title="Mobile" icon="mobile">
+    - iOS (Simulator/Device/Device64)
+    - Android (32-bit/64-bit)
+  </Card>
+  
+  <Card title="All Platforms" icon="globe">
+    Single codebase works across all platforms with platform-specific optimizations.
+  </Card>
+</CardGroup>
+
+### Platform Attribute
+
+```pascal FMXTee.Grid.pas:102
+{$IF CompilerVersion>=23}
+[ComponentPlatformsAttribute(
+  pidWin32 or pidWin64 or pidOSX32
+  {$IF CompilerVersion>=25}or pidiOSSimulator or pidiOSDevice{$IFEND}
+  {$IF CompilerVersion>=26}or pidAndroid{$IFEND}
+  {$IF CompilerVersion>=29}or pidiOSDevice64{$IFEND}
+)]
+{$IFEND}
+TTeeGrid=class(TScrollableControl)
+```
+
+## Architecture
+
+The FMX implementation consists of two main classes:
+
+### TFMXTeeGrid
+
+Internal grid engine optimized for FireMonkey:
+
+```pascal FMXTee.Grid.pas:50
+TFMXTeeGrid=class(TCustomTeeGrid)
+private
+  FOnTyping : TNotifyEvent;
+  IEditor : TControl;
+  IEditorColumn : TColumn;
+  IEditorRow : Integer;
+```
+
+**Key differences from VCL:**
+- Uses FMX controls for cell editing
+- Touch gesture support
+- GPU-accelerated rendering
+- Platform-agnostic input handling
+
+### TTeeGrid
+
+Public FireMonkey component:
+
+```pascal FMXTee.Grid.pas:110
+TTeeGrid=class(TScrollableControl)
+private
+  FGrid : TFMXTeeGrid;
+  FPainter : TFMXPainter;
+```
+
+**Published properties:**
+- All standard TeeGrid properties
+- FMX-specific properties (Touch, Gestures, etc.)
+- Cross-platform layout properties
+
+## Rendering
+
+### FMX Painter
+
+FireMonkey uses GPU-accelerated rendering through the `TFMXPainter` class:
+
+```pascal FMXTee.Painter.pas:50
+TFMXPainter=class(TPainter)
+private
+  ICanvas : TCanvas;
+  ILayout : TTextLayout;
+  BitmapQuality : TBitmapQuality;
+```
+
+**Features:**
+- Hardware-accelerated drawing
+- High-quality text rendering with TextLayout
+- Native platform appearance
+- Automatic DPI scaling
+
+### Quality Settings
+
+<Tabs>
+  <Tab title="Quality Mode (Default)">
+    ```pascal
+    TeeGrid1.Painter.BitmapQuality := TBitmapQuality.Quality;
+    ```
+    
+    **Best for:**
+    - High-resolution displays
+    - Retina/4K screens
+    - When visual quality is priority
+  </Tab>
+  
+  <Tab title="Speed Mode">
+    ```pascal
+    TeeGrid1.Painter.BitmapQuality := TBitmapQuality.Speed;
+    ```
+    
+    **Best for:**
+    - Mobile devices
+    - Large datasets
+    - When performance is priority
+  </Tab>
+</Tabs>
+
+### Paint Method
+
+```pascal FMXTee.Grid.pas:197
+procedure Paint; override;
+```
+
+FMX uses the standard `Paint` method instead of VCL's `PaintWindow`.
+
+## Cell Editing
+
+### FMX Editor Controls
+
+FMX TeeGrid supports FireMonkey editor controls:
+
+```pascal
+uses
+  FMX.DateTimeCtrls, FMX.ListBox, FMX.Colors, FMX.NumberBox;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Assign FMX editor controls to columns
+  TeeGrid1.Columns['Height'].EditorClass := TTrackBar;
+  TeeGrid1.Columns['BirthDate'].EditorClass := TDateEdit;
+  TeeGrid1.Columns['Vehicle'].EditorClass := TComboBox;
+  TeeGrid1.Columns['EyeColor'].EditorClass := TComboColorBox;
+  TeeGrid1.Columns['Holidays'].EditorClass := TCheckBox;
+  TeeGrid1.Columns['Happiness'].EditorClass := TNumberBox;
+end;
+```
+
+### Key Differences from VCL
+
+<AccordionGroup>
+  <Accordion title="TDateEdit vs TDateTimePicker">
+    ```pascal
+    // FMX uses TDateEdit
+    TeeGrid1.Columns['Date'].EditorClass := TDateEdit;
+    
+    procedure TForm1.TeeGrid1CellEditing(
+      const Sender: TObject;
+      const AEditor: TControl;
+      const AColumn: TColumn;
+      const ARow: Integer);
+    begin
+      if AEditor is TDateEdit then
+        TDateEdit(AEditor).DateTime := TeeGrid1.Data.AsFloat(AColumn, ARow);
+    end;
+    ```
+  </Accordion>
+  
+  <Accordion title="TComboColorBox vs TComboBox for Colors">
+    ```pascal
+    // FMX has dedicated color picker
+    TeeGrid1.Columns['Color'].EditorClass := TComboColorBox;
+    
+    procedure TForm1.TeeGrid1CellEditing(
+      const Sender: TObject;
+      const AEditor: TControl;
+      const AColumn: TColumn;
+      const ARow: Integer);
+    begin
+      if AEditor is TComboColorBox then
+        TComboColorBox(AEditor).Color := Round(TeeGrid1.Data.AsFloat(AColumn, ARow));
+    end;
+    ```
+  </Accordion>
+  
+  <Accordion title="TNumberBox vs TSpinEdit">
+    ```pascal
+    // FMX uses TNumberBox with more options
+    procedure TForm1.TeeGrid1CellEditing(
+      const Sender: TObject;
+      const AEditor: TControl;
+      const AColumn: TColumn;
+      const ARow: Integer);
+    begin
+      if AEditor is TNumberBox then
+      begin
+        TNumberBox(AEditor).ValueType := TNumValueType.Float;
+        TNumberBox(AEditor).Min := 0;
+        TNumberBox(AEditor).Max := 1;
+        TNumberBox(AEditor).DecimalDigits := 2;
+      end;
+    end;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Editor Events
+
+FMX uses the same event signatures but with FMX controls:
+
+```pascal
+TCellEditingEvent = procedure(
+  const Sender: TObject;
+  const AEditor: TControl;      // FMX.Controls.TControl
+  const AColumn: TColumn;
+  const ARow: Integer
+) of object;
+
+TCellEditedEvent = procedure(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer;
+  var ChangeData: Boolean;
+  var NewData: String
+) of object;
+```
+
+## Database Integration
+
+### Cross-Platform Data Binding
+
+```pascal
+uses
+  FMXTee.Grid, Tee.GridData.DB, Data.DB, FireDAC.Comp.Client;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Option 1: Use TDataSource
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Option 2: Direct TDataSet (FireDAC)
+  TeeGrid1.DataSource := FDQuery1;
+  
+  // Enable mouse drag scrolling
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+end;
+```
+
+### FireDAC Example
+
+<Accordion title="FireMonkey with FireDAC">
+```pascal Unit_Main.pas
+unit Unit_Main;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, FMX.Forms,
+  FMXTee.Grid, Data.DB, FireDAC.Stan.Intf,
+  FireDAC.Comp.Client, FireDAC.Stan.Param;
+
+type
+  TFormDatabase = class(TForm)
+    TeeGrid1: TTeeGrid;
+    FDQuery1: TFDQuery;
+    DataSource1: TDataSource;
+    procedure FormCreate(Sender: TObject);
+  end;
+
+implementation
+
+procedure TFormDatabase.FormCreate(Sender: TObject);
+begin
+  // Set up FireDAC query
+  FDQuery1.SQL.Text := 'SELECT * FROM Customers';
+  FDQuery1.Open;
+  
+  // Bind to TeeGrid
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Enable drag scrolling for touch devices
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+  
+  // Cosmetic settings
+  TeeGrid1.Cells.Trimming.Mode := TTrimmingMode.Character;
+end;
+
+end.
+```
+</Accordion>
+
+## Touch and Gestures
+
+### Touch Support
+
+FMX TeeGrid includes built-in touch and gesture support:
+
+```pascal
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Enable touch scrolling
+  TeeGrid1.Touch.InteractiveGestures := [TInteractiveGesture.Pan, 
+                                          TInteractiveGesture.Zoom];
+  
+  // Configure scrolling mode
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+end;
+```
+
+### Gesture Handling
+
+```pascal FMXTee.Grid.pas:217
+procedure CMGesture(var EventInfo: TGestureEventInfo); override;
+```
+
+<Tabs>
+  <Tab title="Pan Gesture">
+    ```pascal
+    // Automatic pan/scroll support
+    TeeGrid1.Touch.InteractiveGestures := [TInteractiveGesture.Pan];
+    
+    // Users can drag to scroll
+    TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+    ```
+  </Tab>
+  
+  <Tab title="Zoom Gesture">
+    ```pascal
+    // Enable pinch-to-zoom (experimental)
+    TeeGrid1.Touch.InteractiveGestures := 
+      [TInteractiveGesture.Pan, TInteractiveGesture.Zoom];
+    ```
+  </Tab>
+</Tabs>
+
+## Input Handling
+
+### Keyboard Events
+
+FMX uses different keyboard event signatures:
+
+```pascal FMXTee.Grid.pas:192
+procedure KeyDown(var Key: Word; var KeyChar: WideChar; Shift: TShiftState); override;
+
+// Dialog keys (Tab, Escape, etc.)
+procedure DialogKey(var Key: Word; Shift: TShiftState); override;
+```
+
+**Key differences:**
+- `KeyChar` parameter for character input
+- Cross-platform key codes
+- `DialogKey` for special keys
+
+### Mouse Events
+
+FMX uses floating-point coordinates:
+
+```pascal FMXTee.Grid.pas:193
+procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+procedure MouseMove(Shift: TShiftState; X, Y: Single);
+procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Single);
+procedure MouseWheel(Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
+```
+
+## Themes and Styling
+
+### FMX Styles
+
+FireMonkey uses style sheets for platform-specific appearance:
+
+```pascal
+uses
+  FMXTee.Grid.Themes, FMX.Styles, System.IOUtils;
+
+procedure TForm1.LoadFMXStyle(const StyleFile: string);
+begin
+  // Load and apply FMX style
+  if TPath.GetExtension(StyleFile) = '.fsf' then
+    TStyleManager.SetStyle(TStyleStreaming.LoadFromFile(StyleFile))
+  else
+    TStyleManager.SetStyleFromFile(StyleFile);
+  
+  // Apply to TeeGrid
+  TFMXGridThemes.ApplyTo(TeeGrid1);
+end;
+
+procedure TForm1.GetAvailableStyles;
+var
+  Styles: TStringList;
+begin
+  Styles := TStringList.Create;
+  try
+    // Get all available FMX styles
+    TFMXGridThemes.Available(Styles);
+    
+    // Load into UI
+    ListBox1.Items.Assign(Styles);
+  finally
+    Styles.Free;
+  end;
+end;
+```
+
+### Platform-Specific Appearance
+
+<CodeGroup>
+```pascal iOS Style
+TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+// Light, clean iOS appearance
+```
+
+```pascal Android Style
+TGridThemes.Android.ApplyTo(TeeGrid1.Grid);
+// Material Design appearance
+```
+
+```pascal Desktop Style
+TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+// Traditional desktop appearance
+```
+</CodeGroup>
+
+## Scrolling
+
+### FMX ScrollBars
+
+FireMonkey scrollbars adapt to platform:
+
+```pascal
+// Scrollbar visibility
+TeeGrid1.ScrollBars := TScrollBarKind.Both;
+TeeGrid1.ScrollBars := TScrollBarKind.Vertical;
+TeeGrid1.ScrollBars := TScrollBarKind.Horizontal;
+TeeGrid1.ScrollBars := TScrollBarKind.None;
+
+// Scrolling behavior
+TeeGrid1.Scrolling.Mode := TScrollingMode.Both;      // Drag to scroll
+TeeGrid1.Scrolling.Mode := TScrollingMode.Horizontal;
+TeeGrid1.Scrolling.Mode := TScrollingMode.Vertical;
+TeeGrid1.Scrolling.Mode := TScrollingMode.None;     // ScrollBars only
+```
+
+## Layout and Positioning
+
+### FMX Layout Properties
+
+FireMonkey uses floating-point layout:
+
+```pascal
+// Position and size
+TeeGrid1.Position.X := 10.0;
+TeeGrid1.Position.Y := 10.0;
+TeeGrid1.Width := 500.0;
+TeeGrid1.Height := 400.0;
+
+// Anchors
+TeeGrid1.Anchors := [TAnchorKind.akLeft, TAnchorKind.akTop, 
+                     TAnchorKind.akRight, TAnchorKind.akBottom];
+
+// Margins and padding
+TeeGrid1.Margins.Left := 10;
+TeeGrid1.Margins.Top := 10;
+TeeGrid1.Padding.Left := 5;
+TeeGrid1.Padding.Top := 5;
+
+// Rotation and effects (unique to FMX)
+TeeGrid1.RotationAngle := 0.0;
+TeeGrid1.RotationCenter.X := 0.5;
+TeeGrid1.RotationCenter.Y := 0.5;
+TeeGrid1.Scale.X := 1.0;
+TeeGrid1.Scale.Y := 1.0;
+TeeGrid1.Opacity := 1.0;
+```
+
+## Mobile-Specific Features
+
+### iOS and Android
+
+<AccordionGroup>
+  <Accordion title="Touch Target Expansion">
+    ```pascal
+    // Make touch targets larger for easier tapping
+    {$IF CompilerVersion>23}
+    TeeGrid1.TouchTargetExpansion.Left := 6;
+    TeeGrid1.TouchTargetExpansion.Top := 6;
+    TeeGrid1.TouchTargetExpansion.Right := 6;
+    TeeGrid1.TouchTargetExpansion.Bottom := 6;
+    {$IFEND}
+    ```
+  </Accordion>
+  
+  <Accordion title="Virtual Keyboard">
+    ```pascal
+    // The virtual keyboard appears automatically when editing
+    // Adjust grid position if needed
+    procedure TForm1.TeeGrid1Enter(Sender: TObject);
+    begin
+      {$IFDEF ANDROID}
+      // Scroll form up when keyboard appears
+      VertScrollBox1.ScrollBy(0, -200);
+      {$ENDIF}
+    end;
+    ```
+  </Accordion>
+  
+  <Accordion title="Retina/High-DPI Support">
+    ```pascal
+    // Automatic DPI scaling in FMX
+    // No code needed - handled by framework
+    
+    // Access scale factor if needed
+    var
+      Scale: Single;
+    begin
+      Scale := TeeGrid1.Scene.GetSceneScale;
+      // Adjust custom rendering if necessary
+    end;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tips
+
+<AccordionGroup>
+  <Accordion title="Use Speed Mode for Mobile">
+    ```pascal
+    {$IFDEF MOBILE}
+    TeeGrid1.Painter.BitmapQuality := TBitmapQuality.Speed;
+    {$ELSE}
+    TeeGrid1.Painter.BitmapQuality := TBitmapQuality.Quality;
+    {$ENDIF}
+    ```
+  </Accordion>
+  
+  <Accordion title="Enable Drag Scrolling">
+    ```pascal
+    TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+    ```
+    
+    Provides smooth touch scrolling on mobile and desktop.
+  </Accordion>
+  
+  <Accordion title="Clip Children">
+    ```pascal
+    TeeGrid1.ClipChildren := True;  // Default
+    ```
+    
+    Improves rendering performance by clipping child controls.
+  </Accordion>
+  
+  <Accordion title="Reduce Redraw Frequency">
+    ```pascal
+    // Disable real-time updates during heavy operations
+    TeeGrid1.BeginUpdate;
+    try
+      // Make multiple changes
+      // ...
+    finally
+      TeeGrid1.EndUpdate;
+    end;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Platform Detection
+
+### Conditional Compilation
+
+```pascal
+uses
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
+  {$IFDEF MACOS}
+  Macapi.CocoaTypes,
+  {$ENDIF}
+  {$IFDEF ANDROID}
+  Androidapi.JNI.GraphicsContentViewText,
+  {$ENDIF}
+  {$IFDEF IOS}
+  iOSapi.UIKit,
+  {$ENDIF}
+  FMXTee.Grid;
+
+procedure TForm1.PlatformSpecificSetup;
+begin
+  {$IFDEF MSWINDOWS}
+  // Windows-specific code
+  TeeGrid1.Scrolling.Mode := TScrollingMode.None;
+  {$ENDIF}
+  
+  {$IFDEF MOBILE}
+  // Mobile-specific code
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+  TeeGrid1.Touch.InteractiveGestures := [TInteractiveGesture.Pan];
+  {$ENDIF}
+end;
+```
+
+## Common Patterns
+
+### Cross-Platform FMX Grid
+
+<Accordion title="Complete FMX Example">
+```pascal
+unit Unit_Main;
+
+interface
+
+uses
+  System.SysUtils, System.Types, System.Classes,
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.StdCtrls,
+  FMX.DateTimeCtrls, FMX.ListBox,
+  FMXTee.Grid, Data.DB, FireDAC.Comp.Client;
+
+type
+  TFormMain = class(TForm)
+    TeeGrid1: TTeeGrid;
+    FDQuery1: TFDQuery;
+    DataSource1: TDataSource;
+    procedure FormCreate(Sender: TObject);
+    procedure TeeGrid1CellEditing(const Sender: TObject;
+      const AEditor: TControl; const AColumn: TColumn;
+      const ARow: Integer);
+  private
+    procedure SetupGrid;
+    procedure SetupEditors;
+    procedure ApplyPlatformSettings;
+  end;
+
+implementation
+
+uses
+  Tee.Grid.Themes, FMXTee.Grid.Themes;
+
+procedure TFormMain.FormCreate(Sender: TObject);
+begin
+  SetupGrid;
+  SetupEditors;
+  ApplyPlatformSettings;
+end;
+
+procedure TFormMain.SetupGrid;
+begin
+  // Bind data
+  FDQuery1.SQL.Text := 'SELECT * FROM Customers';
+  FDQuery1.Open;
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Appearance
+  TeeGrid1.Cells.TextAlign.Vertical := TVerticalAlign.Center;
+  TeeGrid1.Cells.Trimming.Mode := TTrimmingMode.Character;
+  
+  // Selection
+  TeeGrid1.Selected.FullRow := True;
+end;
+
+procedure TFormMain.SetupEditors;
+begin
+  TeeGrid1.Editing.AutoEdit := True;
+  TeeGrid1.Editing.EnterKey := TEditingEnter.NextRow;
+  
+  // FMX custom editors
+  TeeGrid1.Columns['Date'].EditorClass := TDateEdit;
+  TeeGrid1.Columns['Status'].EditorClass := TComboBox;
+end;
+
+procedure TFormMain.ApplyPlatformSettings;
+begin
+  {$IFDEF MOBILE}
+  // Mobile optimizations
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+  TeeGrid1.Touch.InteractiveGestures := [TInteractiveGesture.Pan];
+  TeeGrid1.Painter.BitmapQuality := TBitmapQuality.Speed;
+  TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+  {$ELSE}
+  // Desktop settings
+  TeeGrid1.ScrollBars := TScrollBarKind.Both;
+  TeeGrid1.Painter.BitmapQuality := TBitmapQuality.Quality;
+  TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+  {$ENDIF}
+end;
+
+procedure TFormMain.TeeGrid1CellEditing(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer);
+begin
+  if (AColumn.Name = 'Status') and (AEditor is TComboBox) then
+  begin
+    TComboBox(AEditor).Items.Clear;
+    TComboBox(AEditor).Items.Add('Active');
+    TComboBox(AEditor).Items.Add('Inactive');
+  end
+  else if AEditor is TDateEdit then
+  begin
+    TDateEdit(AEditor).DateTime := TeeGrid1.Data.AsFloat(AColumn, ARow);
+  end;
+end;
+
+end.
+```
+</Accordion>
+
+## Limitations
+
+<Warning>
+  Some features available in VCL may have limitations in FMX:
+  
+  - No design-time visual editor (use code-based configuration)
+  - Platform-specific control availability
+  - Different styling approach than VCL themes
+  - Memory management considerations on mobile (ARC on older versions)
+</Warning>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="VCL Framework" icon="desktop" href="/frameworks/vcl">
+    Native Windows implementation
+  </Card>
+  
+  <Card title="Lazarus Framework" icon="code" href="/frameworks/lazarus">
+    FreePascal cross-platform support
+  </Card>
+  
+  <Card title="Cell Editing" icon="pen" href="/features/cell-editing">
+    Editor controls and customization
+  </Card>
+  
+  <Card title="Themes" icon="palette" href="/features/themes">
+    Visual themes and styling
+  </Card>
+</CardGroup>

@@ -1,0 +1,179 @@
+---
+title: "TColumn"
+description: "Column class that defines properties for painting rows in a TeeGrid column"
+---
+
+## Overview
+
+`TColumn` defines the properties used to paint rows of a TeeGrid column. It includes support for hierarchical columns through the `Items` property, which can contain sub-columns.
+
+## Key Properties
+
+<ParamField path="Width" type="TColumnWidth">
+  Column width. Can be set to automatic (default) or a custom value in pixels or percentage.
+</ParamField>
+
+<ParamField path="Header" type="TColumnHeader">
+  Text and formatting properties to display the column name at TeeGrid headers. Contains the column's display text and visual styling.
+</ParamField>
+
+<ParamField path="Items" type="TColumns">
+  Optional collection of sub-columns. Enables hierarchical column structures where columns can contain nested columns.
+</ParamField>
+
+<ParamField path="Expanded" type="Boolean" default="true">
+  Controls visibility of column sub-columns. When `true`, displays the column's sub-columns if they exist.
+</ParamField>
+
+<ParamField path="Visible" type="Boolean" default="true">
+  Controls column visibility. When `false`, the column is not displayed in the grid.
+</ParamField>
+
+<ParamField path="ReadOnly" type="Boolean" default="false">
+  Enables or disables editing of grid cell content using the keyboard. When `true`, cells cannot be edited.
+</ParamField>
+
+<ParamField path="Selectable" type="Boolean" default="true">
+  Controls whether the column can be selected by the user.
+</ParamField>
+
+<ParamField path="ParentFormat" type="Boolean" default="true">
+  When `true`, inherits formatting from the parent column or grid.
+</ParamField>
+
+<ParamField path="DataFormat" type="TDataFormat">
+  Formatting strings for numbers and date-time data types. Controls how data values are displayed in cells.
+  
+  Includes properties:
+  - `Float`: Format string for floating-point numbers (default: `"0.###"`)
+  - `Date`: Format string for date values
+  - `DateTime`: Format string for date-time values
+  - `Time`: Format string for time values
+</ParamField>
+
+<ParamField path="Format" type="TFormat">
+  Custom brush, stroke, and font properties for the column. Defines the visual appearance of column cells.
+</ParamField>
+
+<ParamField path="Margins" type="TMargins">
+  Edge spacing inside grid cells. Controls padding within cells.
+</ParamField>
+
+<ParamField path="TextAlign" type="TTextAlign">
+  Horizontal and vertical text alignment within cells.
+</ParamField>
+
+<ParamField path="TextAlignment" type="TColumnTextAlign" default="Automatic">
+  Column text alignment mode:
+  - `Automatic`: Automatically aligns based on data type (e.g., right-align numbers)
+  - `Custom`: Uses the `TextAlign` property
+</ParamField>
+
+<ParamField path="Locked" type="TColumnLocked" default="None">
+  Locks the column to a specific position:
+  - `None`: Column scrolls normally
+  - `Left`: Column is locked to the left side
+  - `Right`: Column is locked to the right side
+</ParamField>
+
+<ParamField path="Render" type="TRender">
+  Optional custom render instance used to paint column cell contents. Enables custom drawing logic.
+</ParamField>
+
+<ParamField path="TagObject" type="TObject">
+  Custom user-defined object associated with the column. Useful for storing additional metadata.
+</ParamField>
+
+## Key Methods
+
+<ParamField path="CanDisplay" type="Boolean">
+  Returns `true` if the column can be displayed (is visible and has valid width).
+</ParamField>
+
+<ParamField path="HasItems" type="Boolean">
+  Returns `true` if the column has sub-columns in its `Items` collection.
+</ParamField>
+
+<ParamField path="Level" type="Integer">
+  Returns the hierarchical level of the column. Top-level columns return 0, their children return 1, etc.
+</ParamField>
+
+<ParamField path="Right" type="Single">
+  Returns the right edge position of the column (Left + Width).
+</ParamField>
+
+<ParamField path="HorizAlign" type="THorizontalAlign">
+  Returns the effective horizontal alignment for the column based on `TextAlignment` setting and data type.
+</ParamField>
+
+<ParamField path="ParentColumns" type="TColumns">
+  Returns the parent `TColumns` collection that owns this column.
+</ParamField>
+
+## Events
+
+<ParamField path="OnPaint" type="TColumnPaintEvent">
+  Event triggered when painting the column. Allows custom painting logic.
+  
+  ```pascal
+  procedure TForm1.Column1Paint(const Sender: TColumn; 
+    var AData: TRenderData; var DefaultPaint: Boolean);
+  begin
+    // Custom painting code
+    if not DefaultPaint then
+    begin
+      // Override default painting
+    end;
+  end;
+  ```
+</ParamField>
+
+## Usage Example
+
+```pascal
+var
+  Column: TColumn;
+begin
+  // Create and configure a column
+  Column := Grid.Columns.Add('Customer Name');
+  Column.Width.Value := 200;
+  Column.ReadOnly := False;
+  Column.TextAlignment := TColumnTextAlign.Automatic;
+  
+  // Configure data formatting
+  Column.DataFormat.Float := '0.00';
+  Column.DataFormat.Date := 'mm/dd/yyyy';
+  
+  // Add sub-columns
+  Column.Items.Add('First Name');
+  Column.Items.Add('Last Name');
+  Column.Expanded := True;
+end;
+```
+
+## Hierarchical Columns
+
+Columns can contain sub-columns through the `Items` property:
+
+```pascal
+var
+  ParentCol, ChildCol: TColumn;
+begin
+  // Create parent column
+  ParentCol := Grid.Columns.Add('Address');
+  
+  // Add child columns
+  ChildCol := ParentCol.Items.Add('Street');
+  ChildCol := ParentCol.Items.Add('City');
+  ChildCol := ParentCol.Items.Add('State');
+  
+  // Control visibility of sub-columns
+  ParentCol.Expanded := True; // Show sub-columns
+end;
+```
+
+## Related Classes
+
+- [TColumns](/api/tcolumns) - Collection of TColumn instances
+- [TRows](/api/trows) - Grid rows class
+- [TRowGroup](/api/trowgroup) - Row group with headers and footers

@@ -1,0 +1,420 @@
+---
+title: TGridSelection
+description: Manages cell selection and highlighting in TeeGrid, supporting single-cell and multi-cell range selection
+---
+
+## Overview
+
+The `TGridSelection` class controls how cells are selected and highlighted in a TeeGrid. It supports both single-cell selection and multi-cell range selection, with customizable visual formatting and behavior.
+
+## Class Hierarchy
+
+```
+TVisibleTextRender
+  └── TGridSelection
+```
+
+## Key Features
+
+- Single-cell selection
+- Multi-cell range selection
+- Full-row selection mode
+- Customizable selection appearance
+- Separate formatting for focused and unfocused states
+- Automatic scroll-to-view support
+- Parent font inheritance
+
+## Properties
+
+### Column
+
+```pascal
+property Column: TColumn read FColumn write SetColumn stored False;
+```
+
+The currently selected column.
+
+**Example**:
+```pascal
+TeeGrid1.Selected.Column := TeeGrid1.Columns[3];
+```
+
+### Row
+
+```pascal
+property Row: Integer read FRow write SetRow stored False;
+```
+
+The currently selected row index (zero-based).
+
+**Example**:
+```pascal
+TeeGrid1.Selected.Row := 42;
+```
+
+### Range
+
+```pascal
+property Range: TSelectionRange read FRange write SetRange;
+```
+
+Configures multi-cell range selection. Set `Range.Enabled` to `True` to activate range selection.
+
+**Example**:
+```pascal
+// Select a range of cells
+TeeGrid1.Selected.Range.Enabled := True;
+TeeGrid1.Selected.Range.FromRow := 10;
+TeeGrid1.Selected.Range.ToRow := 20;
+TeeGrid1.Selected.Range.FromColumn := TeeGrid1.Columns[3];
+TeeGrid1.Selected.Range.ToColumn := TeeGrid1.Columns[6];
+```
+
+### FullRow
+
+```pascal
+property FullRow: Boolean read FFull write SetFull default False;
+```
+
+When `True`, selecting any cell highlights the entire row.
+
+**Default**: `False`
+
+**Example**:
+```pascal
+TeeGrid1.Selected.FullRow := True;
+```
+
+### ParentFont
+
+```pascal
+property ParentFont: Boolean read FParentFont write SetParentFont default True;
+```
+
+When `True`, the selection uses the parent grid's font settings.
+
+**Default**: `True`
+
+### ScrollToView
+
+```pascal
+property ScrollToView: Boolean read FScrollToView write SetScrollToView default False;
+```
+
+When `True`, the grid automatically scrolls to make the selected cell visible.
+
+**Default**: `False`
+
+**Example**:
+```pascal
+TeeGrid1.Selected.ScrollToView := True;
+TeeGrid1.Selected.Row := 1000; // Automatically scrolls to row 1000
+```
+
+### UnFocused
+
+```pascal
+property UnFocused: TVisibleTextRender read FUnfocused write SetUnfocused;
+```
+
+Defines the visual appearance of the selection when the grid doesn't have focus.
+
+**Example**:
+```pascal
+TeeGrid1.Selected.UnFocused.Format.Brush.Color := clLightGray;
+TeeGrid1.Selected.UnFocused.Font.Color := clBlack;
+```
+
+### OnChange
+
+```pascal
+property OnChange: TNotifyEvent read FOnChange write FOnChange;
+```
+
+Event triggered when the selection changes.
+
+**Example**:
+```pascal
+TeeGrid1.Selected.OnChange := SelectionChanged;
+
+procedure TForm1.SelectionChanged(Sender: TObject);
+begin
+  StatusBar1.SimpleText := Format('Selected: Row %d, Column %s',
+    [TeeGrid1.Selected.Row, TeeGrid1.Selected.Column.Header.Text]);
+end;
+```
+
+## Methods
+
+### Constructor Create
+
+```pascal
+Constructor Create(const AChanged: TNotifyEvent); override;
+```
+
+Creates a new `TGridSelection` instance.
+
+**Parameters**:
+- `AChanged`: Event handler called when selection changes
+
+### Assign
+
+```pascal
+procedure Assign(Source: TPersistent); override;
+```
+
+Copies selection properties from another object.
+
+**Parameters**:
+- `Source`: The source object to copy from
+
+### Change
+
+```pascal
+procedure Change(const AColumn: TColumn; const ARow: Integer);
+```
+
+Changes the current selection to the specified column and row.
+
+**Parameters**:
+- `AColumn`: The column to select
+- `ARow`: The row index to select
+
+**Example**:
+```pascal
+TeeGrid1.Selected.Change(TeeGrid1.Columns[3], 42);
+```
+
+### Clear
+
+```pascal
+procedure Clear;
+```
+
+Clears the current selection.
+
+**Example**:
+```pascal
+TeeGrid1.Selected.Clear;
+```
+
+### GetColumns
+
+```pascal
+procedure GetColumns(const Visible: TVisibleColumns; out AFrom, ATo: Integer);
+```
+
+Retrieves the column indices for the current selection range.
+
+**Parameters**:
+- `Visible`: The visible columns collection
+- `AFrom`: Returns the starting column index
+- `ATo`: Returns the ending column index
+
+### InitFormat
+
+```pascal
+procedure InitFormat;
+```
+
+Initializes the selection format with default values.
+
+### IsEmpty
+
+```pascal
+function IsEmpty: Boolean;
+```
+
+Returns `True` if no cell is currently selected.
+
+**Returns**: Boolean indicating if selection is empty
+
+**Example**:
+```pascal
+if TeeGrid1.Selected.IsEmpty then
+  ShowMessage('No cell selected');
+```
+
+### PaintColumn
+
+```pascal
+procedure PaintColumn(var AData: TRenderData; const AColumn: TColumn; 
+                      const AFont: TFont; const IsFocused: Boolean);
+```
+
+Paints the selection highlight for a specific column.
+
+**Parameters**:
+- `AData`: Rendering data
+- `AColumn`: The column to paint
+- `AFont`: The font to use
+- `IsFocused`: Whether the grid has focus
+
+### TryRange
+
+```pascal
+procedure TryRange(const AColumn: TColumn; const ARow: Integer; const Y: Single);
+```
+
+Attempts to extend the selection range to include the specified cell.
+
+**Parameters**:
+- `AColumn`: The column to extend to
+- `ARow`: The row to extend to
+- `Y`: The vertical position
+
+## TSelectionRange Class
+
+The `TSelectionRange` class defines a rectangular range of cells for multi-cell selection.
+
+### Properties
+
+#### Enabled
+
+```pascal
+property Enabled: Boolean read FEnabled write SetEnabled default False;
+```
+
+Enables or disables range selection mode.
+
+**Default**: `False`
+
+#### FromColumn / ToColumn
+
+```pascal
+property FromColumn: TColumn read FFromColumn write SetFromColumn;
+property ToColumn: TColumn read FToColumn write SetToColumn;
+```
+
+The starting and ending columns of the selection range.
+
+#### FromRow / ToRow
+
+```pascal
+property FromRow: Integer read FFromRow write SetFromRow default -1;
+property ToRow: Integer read FToRow write SetToRow default -1;
+```
+
+The starting and ending row indices of the selection range.
+
+**Default**: `-1` (no row selected)
+
+## Usage Examples
+
+### Single-Cell Selection
+
+```pascal
+procedure SelectCell(Grid: TTeeGrid; ColIndex, RowIndex: Integer);
+begin
+  Grid.Selected.Column := Grid.Columns[ColIndex];
+  Grid.Selected.Row := RowIndex;
+  
+  // Alternative method
+  Grid.Selected.Change(Grid.Columns[ColIndex], RowIndex);
+end;
+```
+
+### Multi-Cell Range Selection
+
+```pascal
+procedure SelectRange(Grid: TTeeGrid);
+begin
+  // Enable range selection
+  Grid.Selected.Range.Enabled := True;
+  
+  // Define the range
+  Grid.Selected.Range.FromRow := 10;
+  Grid.Selected.Range.ToRow := 20;
+  Grid.Selected.Range.FromColumn := Grid.Columns[3];
+  Grid.Selected.Range.ToColumn := Grid.Columns[6];
+end;
+```
+
+### Customizing Selection Appearance
+
+```pascal
+procedure CustomizeSelection(Grid: TTeeGrid);
+begin
+  // Focused selection appearance
+  Grid.Selected.Format.Brush.Color := clHighlight;
+  Grid.Selected.Font.Color := clWhite;
+  Grid.Selected.Font.Style := [fsBold];
+  
+  // Unfocused selection appearance
+  Grid.Selected.UnFocused.Format.Brush.Color := clSilver;
+  Grid.Selected.UnFocused.Font.Color := clBlack;
+end;
+```
+
+### Full-Row Selection
+
+```pascal
+procedure EnableFullRowSelection(Grid: TTeeGrid);
+begin
+  Grid.Selected.FullRow := True;
+  Grid.Selected.Format.Brush.Color := clSkyBlue;
+  Grid.Selected.Row := 0;
+end;
+```
+
+### Handling Selection Changes
+
+```pascal
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  TeeGrid1.Selected.OnChange := HandleSelectionChange;
+  TeeGrid1.Selected.ScrollToView := True;
+end;
+
+procedure TForm1.HandleSelectionChange(Sender: TObject);
+var
+  Sel: TGridSelection;
+begin
+  Sel := TeeGrid1.Selected;
+  
+  if not Sel.IsEmpty then
+  begin
+    StatusBar1.Panels[0].Text := Format('Row: %d', [Sel.Row]);
+    StatusBar1.Panels[1].Text := Format('Column: %s', 
+      [Sel.Column.Header.Text]);
+  end
+  else
+    StatusBar1.SimpleText := 'No selection';
+end;
+```
+
+### Programmatic Selection with Navigation
+
+```pascal
+procedure TForm1.SelectNextRow;
+begin
+  if not TeeGrid1.Selected.IsEmpty then
+  begin
+    if TeeGrid1.Selected.Row < TeeGrid1.Data.Count - 1 then
+    begin
+      TeeGrid1.Selected.Row := TeeGrid1.Selected.Row + 1;
+    end;
+  end
+  else
+  begin
+    // Select first row, first column
+    TeeGrid1.Selected.Change(TeeGrid1.Columns.FirstVisible, 0);
+  end;
+end;
+```
+
+## Important Notes
+
+<Note>
+Selection only applies to columns that have their `Selectable` property set to `True`.
+</Note>
+
+<Warning>
+When using range selection, ensure that `Range.Enabled` is set to `True` before setting the range boundaries.
+</Warning>
+
+## See Also
+
+- [TGridBands](/api/tgridbands) - Grid bands for headers and footers
+- [TGridEditing](/api/tgridediting) - Cell editing configuration
+- [TIndicator](/api/tindicator) - Grid row indicator column

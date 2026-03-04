@@ -1,0 +1,359 @@
+---
+title: "Custom Editors Example"
+description: "Use custom cell editor controls like ComboBox, DateTimePicker, TrackBar, and more"
+---
+
+## Overview
+
+TeeGrid supports custom cell editors for interactive data entry. You can use any VCL/FMX control as a cell editor, including ComboBox, DateTimePicker, TrackBar, CheckBox, and more.
+
+## Basic Editor Setup
+
+### Assigning Editor Classes
+
+```pascal
+procedure SetupCustomEditors;
+begin
+  // Use different controls for different columns
+  TeeGrid1.Columns['Height'].EditorClass := TTrackBar;
+  TeeGrid1.Columns['BirthDate'].EditorClass := TDateTimePicker;
+  TeeGrid1.Columns['Vehicle'].EditorClass := TComboBox;
+  TeeGrid1.Columns['EyeColor'].EditorClass := TComboBox;
+  TeeGrid1.Columns['Holidays'].EditorClass := TCheckBox;
+  TeeGrid1.Columns['Happiness'].EditorClass := TSpinEdit;
+end;
+```
+
+## Editor Events
+
+### OnCellEditing
+
+Called **before** the editor is shown - use it to initialize the editor:
+
+```pascal
+procedure TFormCellEditors.TeeGrid1CellEditing(const Sender: TObject;
+  const AEditor: TControl; const AColumn: TColumn; const ARow: Integer);
+var
+  tmpValue: String;
+begin
+  // Initialize ComboBox editors
+  if AEditor is TComboBox then
+  begin
+    tmpValue := TeeGrid1.Data.AsString(AColumn, ARow);
+    TComboBox(AEditor).Style := csDropDown;
+    
+    if AColumn = TeeGrid1.Columns['Vehicle'] then
+      FillCombo(TComboBox(AEditor),
+        ['None', 'Bicycle', 'MotorBike', 'Car', 'Caravan', 'Truck', 'Boat', 'Plane'],
+        tmpValue)
+    else if AColumn = TeeGrid1.Columns['EyeColor'] then
+      FillCombo(TComboBox(AEditor),
+        ['Black', 'Brown', 'Green', 'Blue'],
+        ColorOf(StrToInt(tmpValue)));
+  end;
+  
+  // Initialize TrackBar
+  if AColumn = TeeGrid1.Columns['Height'] then
+    if AEditor is TTrackBar then
+      SetupTrackBar(TTrackBar(AEditor), AColumn, ARow);
+end;
+
+procedure SetupTrackBar(const ATrack: TTrackBar; const AColumn: TColumn;
+  const ARow: Integer);
+begin
+  ATrack.Min := 400;
+  ATrack.Max := 700;
+  ATrack.Frequency := 50;
+  ATrack.Position := Round(100 * TeeGrid1.Data.AsFloat(AColumn, ARow));
+end;
+```
+
+### OnCellEdited
+
+Called **after** editing - use it to process the editor value:
+
+```pascal
+procedure TFormCellEditors.TeeGrid1CellEdited(const Sender: TObject;
+  const AEditor: TControl; const AColumn: TColumn; const ARow: Integer;
+  var ChangeData: Boolean; var NewData: String);
+var
+  tmpValue: String;
+  tmp: Single;
+begin
+  // Handle TrackBar value
+  if AColumn = TeeGrid1.Columns['Height'] then
+    if AEditor is TTrackBar then
+    begin
+      tmp := 0.01 * TTrackBar(AEditor).Position;
+      TeeGrid1.Data.SetValue(AColumn, ARow, FloatToStr(tmp));
+      ChangeData := False;  // We already set the value
+    end;
+  
+  // Handle ComboBox value
+  if AEditor is TComboBox then
+  begin
+    tmpValue := SelectedCombo(TComboBox(AEditor));
+    
+    if AColumn = TeeGrid1.Columns['EyeColor'] then
+      tmpValue := IntToStr(ColorFromString(tmpValue));
+    
+    if tmpValue = '' then
+      tmpValue := 'none';
+    
+    TeeGrid1.Data.SetValue(AColumn, ARow, tmpValue);
+    ChangeData := False;
+  end;
+end;
+```
+
+## Editing Options
+
+### Auto-Edit
+
+```pascal
+// When True: pressing any key starts editing
+// When False: only F2 or double-click starts editing
+TeeGrid1.Editing.AutoEdit := True;
+```
+
+### Always Visible
+
+```pascal
+// Keep editor visible when moving between cells
+TeeGrid1.Editing.AlwaysVisible := True;
+```
+
+### Enter Key Behavior
+
+```pascal
+type
+  TEditingEnter = (NextColumn, NextRow, Exit, Stay);
+
+// What happens when you press Enter while editing
+TeeGrid1.Editing.EnterKey := TEditingEnter.NextRow;
+```
+
+### Selection Behavior
+
+```pascal
+type
+  TSelectingEnter = (NextRow, NextColumn, Edit, Stay);
+
+// What happens when you press Enter while NOT editing (just selecting)
+TeeGrid1.Selected.EnterKey := TSelectingEnter.Edit;
+```
+
+### Text Selection
+
+```pascal
+// Select all text when editing starts
+TeeGrid1.Editing.Text.Selected := True;
+```
+
+## Advanced: Filterable ComboBox
+
+From the demo, a ComboBox that filters items as you type:
+
+```pascal
+type
+  TComboBox = class(Vcl.StdCtrls.TComboBox)
+  private
+    FStoredItems: TStringList;
+    procedure FilterItems;
+    procedure StoredItemsChange(Sender: TObject);
+    procedure CNCommand(var AMessage: TWMCommand); message CN_COMMAND;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+    property StoredItems: TStringList read FStoredItems write SetStoredItems;
+  end;
+
+constructor TComboBox.Create(AOwner: TComponent);
+begin
+  inherited;
+  AutoComplete := False;
+  FStoredItems := TStringList.Create;
+  FStoredItems.OnChange := StoredItemsChange;
+end;
+
+procedure TComboBox.CNCommand(var AMessage: TWMCommand);
+begin
+  inherited;
+  if AMessage.NotifyCode = CBN_EDITUPDATE then
+    FilterItems;  // Filter as user types
+end;
+
+procedure TComboBox.FilterItems;
+var
+  I: Integer;
+begin
+  Items.BeginUpdate;
+  try
+    if Text <> '' then
+    begin
+      Items.Clear;
+      for I := 0 to FStoredItems.Count - 1 do
+        if ContainsText(FStoredItems[I], Text) then
+          Items.Add(FStoredItems[I]);
+    end
+    else
+      Items.Assign(FStoredItems);
+  finally
+    Items.EndUpdate;
+  end;
+end;
+```
+
+Using the filterable ComboBox:
+
+```pascal
+procedure TFormCellEditors.TeeGrid1CellEditing(const Sender: TObject;
+  const AEditor: TControl; const AColumn: TColumn; const ARow: Integer);
+begin
+  if AEditor is TComboBox then
+  begin
+    // Set up stored items for filtering
+    TComboBox(AEditor).StoredItems.BeginUpdate;
+    TComboBox(AEditor).StoredItems.Clear;
+    TComboBox(AEditor).StoredItems.AddStrings(TComboBox(AEditor).Items);
+    TComboBox(AEditor).StoredItems.EndUpdate;
+  end;
+end;
+```
+
+## Complete Example
+
+From `Unit_Editors.pas`:
+
+```pascal
+unit Unit_Editors;
+
+interface
+
+uses
+  Vcl.Forms, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.Samples.Spin,
+  VCLTee.Control, VCLTee.Grid, Tee.Grid.Columns;
+
+type
+  TFormCellEditors = class(TForm)
+    TeeGrid1: TTeeGrid;
+    CBAutoEdit: TCheckBox;
+    CBAlwaysVisible: TCheckBox;
+    CBEnterKey: TComboBox;
+    CBCustomEditors: TCheckBox;
+    CBSelectedText: TCheckBox;
+    CBSelectingEnter: TComboBox;
+    procedure FormCreate(Sender: TObject);
+    procedure CBAutoEditClick(Sender: TObject);
+    procedure CBAlwaysVisibleClick(Sender: TObject);
+    procedure CBEnterKeyChange(Sender: TObject);
+    procedure CBCustomEditorsClick(Sender: TObject);
+    procedure CBSelectedTextClick(Sender: TObject);
+    procedure CBSelectingEnterChange(Sender: TObject);
+    procedure TeeGrid1CellEditing(const Sender: TObject;
+      const AEditor: TControl; const AColumn: TColumn; const ARow: Integer);
+    procedure TeeGrid1CellEdited(const Sender: TObject;
+      const AEditor: TControl; const AColumn: TColumn; const ARow: Integer;
+      var ChangeData: Boolean; var NewData: String);
+  private
+    procedure SetupCustomEditors;
+  end;
+
+implementation
+
+uses
+  Unit_Example_Data;
+
+procedure TFormCellEditors.FormCreate(Sender: TObject);
+begin
+  // Use sample data
+  TeeGrid1.Data := SampleData;
+  
+  // Set data formats
+  TeeGrid1.Columns['Height'].DataFormat.Float := '0.##';
+  TeeGrid1.Columns['BirthDate'].DataFormat.DateTime := 'mm-dd-yyyy';
+  
+  // Default: don't select all text when editing
+  TeeGrid1.Editing.Text.Selected := False;
+  
+  SetupCustomEditors;
+end;
+
+procedure TFormCellEditors.SetupCustomEditors;
+begin
+  TeeGrid1.Columns['Height'].EditorClass := TTrackBar;
+  TeeGrid1.Columns['BirthDate'].EditorClass := TDateTimePicker;
+  TeeGrid1.Columns['Vehicle'].EditorClass := TComboBox;
+  TeeGrid1.Columns['EyeColor'].EditorClass := TComboBox;
+  TeeGrid1.Columns['Holidays'].EditorClass := TCheckBox;
+  TeeGrid1.Columns['Happiness'].EditorClass := TSpinEdit;
+end;
+
+procedure TFormCellEditors.CBAutoEditClick(Sender: TObject);
+begin
+  TeeGrid1.Editing.AutoEdit := CBAutoEdit.Checked;
+end;
+
+procedure TFormCellEditors.CBAlwaysVisibleClick(Sender: TObject);
+begin
+  TeeGrid1.Editing.AlwaysVisible := CBAlwaysVisible.Checked;
+end;
+
+procedure TFormCellEditors.CBEnterKeyChange(Sender: TObject);
+begin
+  TeeGrid1.Editing.EnterKey := TEditingEnter(CBEnterKey.ItemIndex);
+end;
+
+procedure TFormCellEditors.CBSelectingEnterChange(Sender: TObject);
+begin
+  TeeGrid1.Selected.EnterKey := TSelectingEnter(CBSelectingEnter.ItemIndex);
+end;
+
+procedure TFormCellEditors.CBSelectedTextClick(Sender: TObject);
+begin
+  TeeGrid1.Editing.Text.Selected := CBSelectedText.Checked;
+end;
+
+procedure TFormCellEditors.CBCustomEditorsClick(Sender: TObject);
+begin
+  if CBCustomEditors.Checked then
+    SetupCustomEditors
+  else
+    ResetCustomEditors(TeeGrid1);
+end;
+
+end.
+```
+
+## Available Editor Types
+
+| Editor Class | Use Case | Platform |
+|-------------|----------|----------|
+| TEdit | Text input (default) | VCL, FMX |
+| TComboBox | Dropdown selection | VCL, FMX |
+| TDateTimePicker | Date/time input | VCL |
+| TTrackBar | Numeric slider | VCL, FMX |
+| TCheckBox | Boolean values | VCL, FMX |
+| TSpinEdit | Integer with +/- buttons | VCL |
+| TColorBox | Color selection | VCL |
+| TMemo | Multi-line text | VCL, FMX |
+
+## Best Practices
+
+1. **Initialize editors** in OnCellEditing (before showing)
+2. **Process values** in OnCellEdited (after editing)
+3. **Set ChangeData := False** if you handle value setting yourself
+4. **Use AutoEdit** for spreadsheet-like behavior
+5. **Configure EnterKey** based on your data entry pattern
+
+## Next Steps
+
+- Learn about [Custom Sorting](/examples/custom-sorting)
+- Explore [Themes](/examples/themes) for styling
+- See [Database Grid](/examples/database-grid) for data binding
+
+## Related Examples
+
+- [Array Binding](/examples/array-binding)
+- [List Binding](/examples/list-binding)
+- [Database Grid](/examples/database-grid)

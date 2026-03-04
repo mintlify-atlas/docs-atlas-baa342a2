@@ -1,0 +1,258 @@
+---
+title: 'TTeeGrid'
+description: 'Main grid component for displaying and editing tabular data'
+icon: 'table'
+---
+
+## Overview
+
+TTeeGrid is the main grid component available for both VCL and FireMonkey (FMX) frameworks. It provides a high-performance, feature-rich interface for displaying and editing tabular data with support for columns, rows, headers, footers, and cell editing.
+
+<Info>
+  TTeeGrid is implemented separately for VCL (`VCLTee.Grid`) and FMX (`FMXTee.Grid`), but both share the same core properties and methods through the base `TCustomTeeGrid` class.
+</Info>
+
+## Properties
+
+### Data and Display
+
+<ResponseField name="Data" type="TVirtualData">
+  The data source for the grid. Assign an instance of TVirtualData or its descendants (TDataSource, TArray&lt;T&gt;, TList&lt;T&gt;, etc.) to populate the grid with data.
+</ResponseField>
+
+<ResponseField name="Columns" type="TColumns">
+  Collection of grid columns that define the structure and appearance of data columns. Each column can have custom formatting, width, alignment, and editor settings.
+</ResponseField>
+
+<ResponseField name="Rows" type="TRows">
+  Configuration for grid rows including height, alternating colors, and row selection settings.
+</ResponseField>
+
+<ResponseField name="DataSource" type="TComponent">
+  Direct link to a TDataSource component for database connectivity. Alternative to using the Data property.
+</ResponseField>
+
+### Visual Elements
+
+<ResponseField name="Back" type="TFormat">
+  Background formatting for the grid including color, gradient, stroke, and shadow settings.
+</ResponseField>
+
+<ResponseField name="Cells" type="TTextRender">
+  Formatting and rendering settings for grid cells including font, alignment, padding, and text appearance.
+</ResponseField>
+
+<ResponseField name="Header" type="TColumnHeaderBand">
+  Configuration for the column header band including visibility, height, text formatting, and sorting indicators.
+</ResponseField>
+
+<ResponseField name="Headers" type="TGridBands">
+  Collection of additional header bands that can be displayed above the grid.
+</ResponseField>
+
+<ResponseField name="Footer" type="TGridBands">
+  Collection of footer bands that can be displayed below the grid for totals, summaries, or additional information.
+</ResponseField>
+
+<ResponseField name="Indicator" type="TIndicator">
+  Settings for the row indicator column that shows the current row and editing state.
+</ResponseField>
+
+### Behavior
+
+<ResponseField name="ReadOnly" type="Boolean" default="True">
+  When True, prevents editing of grid cells. Set to False to allow cell editing.
+</ResponseField>
+
+<ResponseField name="Editing" type="TGridEditing">
+  Configuration for cell editing behavior including auto-edit mode, double-click editing, and Enter key behavior.
+</ResponseField>
+
+<ResponseField name="Selected" type="TGridSelection">
+  The currently selected cell, row, or range in the grid. Use this to programmatically control or read the selection.
+</ResponseField>
+
+<ResponseField name="Scrolling" type="TGridScrolling">
+  Settings for grid scrolling behavior including scroll mode and smooth scrolling options.
+</ResponseField>
+
+<ResponseField name="Painter" type="TPainter">
+  The painter implementation used to render the grid. Can be GDI, GDI+, or other custom painters.
+</ResponseField>
+
+## Events
+
+### Cell Events
+
+<ResponseField name="OnCellEditing" type="TCellEditingEvent">
+  Fired when a cell editor is about to be displayed. Use this event to customize the editor control.
+  
+  **Signature:**
+  ```pascal
+  procedure(const Sender: TObject; const AEditor: TControl;
+           const AColumn: TColumn; const ARow: Integer) of object;
+  ```
+</ResponseField>
+
+<ResponseField name="OnCellEdited" type="TCellEditedEvent">
+  Fired when cell editing is complete. Allows validation and modification of the new data before it's saved.
+  
+  **Signature:**
+  ```pascal
+  procedure(const Sender: TObject; const AEditor: TControl;
+           const AColumn: TColumn; const ARow: Integer;
+           var ChangeData: Boolean; var NewData: String) of object;
+  ```
+</ResponseField>
+
+### Selection Events
+
+<ResponseField name="OnSelect" type="TNotifyEvent">
+  Fired when the grid selection changes (cell or row selection).
+</ResponseField>
+
+### Column Events
+
+<ResponseField name="OnClickedHeader" type="TNotifyEvent">
+  Fired when a column header is clicked, typically used for sorting.
+</ResponseField>
+
+<ResponseField name="OnColumnResized" type="TColumnEvent">
+  Fired after a column has been resized by the user.
+  
+  **Signature:**
+  ```pascal
+  procedure(Sender: TObject; const AColumn: TColumn) of object;
+  ```
+</ResponseField>
+
+### Detail Events
+
+<ResponseField name="OnNewDetail" type="TNewDetailEvent">
+  Fired when a detail (sub-grid) is about to be created for a master-detail relationship.
+  
+  **Signature:**
+  ```pascal
+  procedure(Sender: TObject; const ARow: Integer;
+           var Detail: TVirtualData) of object;
+  ```
+</ResponseField>
+
+### Drawing Events
+
+<ResponseField name="OnAfterDraw" type="TNotifyEvent">
+  Fired after the grid has been painted. Use for custom drawing operations.
+</ResponseField>
+
+## Public Methods
+
+<ParamField path="Assign" type="procedure">
+  Copies properties from another TPersistent object.
+  
+  **Signature:**
+  ```pascal
+  procedure Assign(Source: TPersistent);
+  ```
+</ParamField>
+
+<ParamField path="DoChanged" type="procedure">
+  Triggers a repaint of the grid. Call this when you programmatically change grid properties.
+  
+  **Signature:**
+  ```pascal
+  procedure DoChanged(Sender: TObject);
+  ```
+  
+  **VCL Only**
+</ParamField>
+
+<ParamField path="Changed" type="procedure">
+  Triggers a repaint of the grid. Call this when you programmatically change grid properties.
+  
+  **Signature:**
+  ```pascal
+  procedure Changed(Sender: TObject);
+  ```
+  
+  **FMX Only**
+</ParamField>
+
+## Example Usage
+
+### Basic Grid Setup
+
+```pascal
+var
+  Grid: TTeeGrid;
+  Data: TVirtualDBData;
+begin
+  Grid := TTeeGrid.Create(Self);
+  Grid.Parent := Self;
+  Grid.Align := alClient;
+  
+  // Configure appearance
+  Grid.ReadOnly := False;
+  Grid.Header.Visible := True;
+  Grid.Indicator.Visible := True;
+  
+  // Connect to data
+  Data := TVirtualDBData.Create;
+  Data.DataSource := DataSource1;
+  Grid.Data := Data;
+end;
+```
+
+### Handling Cell Editing
+
+```pascal
+procedure TForm1.TeeGrid1CellEdited(const Sender: TObject;
+  const AEditor: TControl; const AColumn: TColumn; const ARow: Integer;
+  var ChangeData: Boolean; var NewData: String);
+begin
+  // Validate the new data
+  if (AColumn.Name = 'Age') and (StrToIntDef(NewData, 0) < 18) then
+  begin
+    ShowMessage('Age must be 18 or older');
+    ChangeData := False; // Cancel the change
+  end;
+end;
+```
+
+### Master-Detail Configuration
+
+```pascal
+procedure TForm1.TeeGrid1NewDetail(Sender: TObject; const ARow: Integer;
+  var Detail: TVirtualData);
+var
+  DetailData: TVirtualDBData;
+begin
+  DetailData := TVirtualDBData.Create;
+  DetailData.DataSource := DetailDataSource;
+  Detail := DetailData;
+end;
+```
+
+## Platform Differences
+
+### VCL
+- Uses GDI/GDI+ for rendering
+- Property: `Canvas` - Direct access to TControlCanvas
+- Method: `DoChanged` - Trigger repaint
+- Built-in scrollbar support via `TScrollableControl`
+
+### FireMonkey
+- Cross-platform rendering
+- Method: `Changed` - Trigger repaint  
+- Touch and gesture support
+- Supports multiple platforms (Windows, macOS, iOS, Android)
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="TCustomTeeGrid" icon="diagram-project" href="/api/customteegrid">
+    Base class with core grid architecture
+  </Card>
+  <Card title="TVirtualData" icon="database" href="/api/virtualdata">
+    Abstract data interface for grid data sources
+  </Card>
+</CardGroup>

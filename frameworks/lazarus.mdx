@@ -1,0 +1,754 @@
+---
+title: "Lazarus Framework"
+description: "Using TeeGrid in Lazarus IDE with FreePascal for cross-platform development"
+---
+
+## Overview
+
+TeeGrid for Lazarus provides cross-platform grid components using the FreePascal compiler and LCL (Lazarus Component Library). Share the same VCL codebase across Windows, Linux, macOS, and other FreePascal-supported platforms.
+
+<Note>
+  Lazarus uses the same `VCLTee.Grid` unit as Delphi VCL, with FPC-specific conditional compilation for compatibility.
+</Note>
+
+## Installation
+
+### Setting Up TeeGrid in Lazarus
+
+<Steps>
+  <Step title="Clone the TeeGrid repository">
+    ```bash
+    git clone https://github.com/Steema/TeeGrid.git
+    cd TeeGrid
+    ```
+  </Step>
+  
+  <Step title="Open your Lazarus project">
+    Launch Lazarus IDE and open your project or create a new application.
+  </Step>
+  
+  <Step title="Add units to your uses clause">
+    ```pascal
+    uses
+      VCLTee.Grid,      // Main TTeeGrid component
+      VCLTee.Control,   // Base control classes
+      VCLTee.Painter,   // LCL rendering
+      db;               // Database support
+    ```
+  </Step>
+  
+  <Step title="Configure library paths">
+    Add TeeGrid source directories to your project search path:
+    - Project → Project Options → Compiler Options → Paths
+    - Add to "Other unit files":
+      - `TeeGrid/src/delphi/VCL`
+      - `TeeGrid/src/delphi`
+  </Step>
+</Steps>
+
+## Platform Support
+
+Lazarus with TeeGrid supports multiple platforms:
+
+<CardGroup cols={3}>
+  <Card title="Windows" icon="windows">
+    - Win32
+    - Win64
+    - Full GDI support
+  </Card>
+  
+  <Card title="Linux" icon="linux">
+    - x86_64
+    - ARM
+    - GTK2/GTK3/Qt5 widgets
+  </Card>
+  
+  <Card title="macOS" icon="apple">
+    - Intel (x86_64)
+    - Apple Silicon (AArch64)
+    - Cocoa widget set
+  </Card>
+</CardGroup>
+
+### Additional Platforms
+
+- **FreeBSD**: x86_64, i386
+- **Raspberry Pi**: ARM Linux
+- **Other Unix**: Most POSIX-compatible systems
+
+## FreePascal Compatibility
+
+### Conditional Compilation
+
+TeeGrid uses `{$IFDEF FPC}` directives for FreePascal compatibility:
+
+```pascal VCLTee.Grid.pas
+unit VCLTee.Grid;
+{$I Tee.inc}
+
+interface
+
+uses
+  {System.}Classes,
+  
+  {$IFNDEF FPC}
+  {System.}Types,
+  {$ENDIF}
+  
+  {$IFDEF MSWINDOWS}
+  Windows, Messages,
+  {$ENDIF}
+  
+  {VCL.}Controls, {VCL.}Graphics,
+  
+  {$IFDEF FPC}
+  LCLType, LCLIntf, LMessages,
+  {$ENDIF}
+  
+  VCLTee.Painter, VCLTee.Control;
+```
+
+### Object Pascal Mode
+
+Enable Object Pascal mode for Delphi compatibility:
+
+```pascal
+{$mode objfpc}{$H+}
+```
+
+**What this does:**
+- `{$mode objfpc}`: Object Pascal mode (Delphi-compatible)
+- `{$H+}`: Long strings (AnsiString) by default
+
+## Architecture
+
+### Shared VCL Implementation
+
+Lazarus uses the same classes as Delphi VCL:
+
+```pascal
+TVCLTeeGrid=class(TCustomTeeGrid)
+  // Same implementation as Delphi VCL
+end;
+
+TTeeGrid=class(TScrollableControl)
+private
+  FGrid : TVCLTeeGrid;
+  FPainter : TPainter;
+  
+  {$IFDEF FPC}
+  FParentBack : Boolean;
+  {$ENDIF}
+end;
+```
+
+### LCL-Specific Members
+
+```pascal VCLTee.Grid.pas:104
+{$IFDEF FPC}
+FParentBack : Boolean;
+{$ENDIF}
+
+// ...
+
+property ParentBackground {$IFDEF FPC}:Boolean read FParentBack write FParentBack{$ENDIF};
+```
+
+## Rendering
+
+### LCL Painter
+
+Uses the same `TGDIPainter` with LCL adaptations:
+
+```pascal VCLTee.Painter.pas
+{$IFDEF FPC}
+uses
+  LCLType, LCLIntf, Classes;
+{$ENDIF}
+
+type
+  TGDIPainter=class(TWindowsPainter)
+  public
+    class procedure ApplyFont(const ASource:TTeeFont; const ADest:Graphics.TFont); static;
+    // ... rendering methods
+  end;
+```
+
+**Rendering features:**
+- Native LCL canvas drawing
+- Platform-specific optimizations
+- GTK/Qt/Cocoa widget rendering
+
+## Database Integration
+
+### Supported Database Components
+
+Lazarus TeeGrid works with various database components:
+
+<Tabs>
+  <Tab title="TDbf (DBF Files)">
+    ```pascal
+    uses
+      VCLTee.Grid, db, dbf;
+    
+    type
+      TForm1 = class(TForm)
+        TeeGrid1: TTeeGrid;
+        Dbf1: TDbf;
+        DataSource1: TDataSource;
+        procedure FormCreate(Sender: TObject);
+      end;
+    
+    procedure TForm1.FormCreate(Sender: TObject);
+    begin
+      // Open DBF table
+      Dbf1.TableName := 'disco.dbf';
+      Dbf1.Open;
+      
+      // Bind to TeeGrid (DataSource property set at design-time)
+      TeeGrid1.Selected.ScrollToView := True;
+    end;
+    ```
+  </Tab>
+  
+  <Tab title="SQLdb (Built-in SQL)">
+    ```pascal
+    uses
+      VCLTee.Grid, db, sqldb, sqlite3conn;
+    
+    type
+      TForm1 = class(TForm)
+        TeeGrid1: TTeeGrid;
+        SQLQuery1: TSQLQuery;
+        SQLite3Connection1: TSQLite3Connection;
+        SQLTransaction1: TSQLTransaction;
+        DataSource1: TDataSource;
+      end;
+    
+    procedure TForm1.FormCreate(Sender: TObject);
+    begin
+      SQLite3Connection1.DatabaseName := 'data.db';
+      SQLite3Connection1.Connected := True;
+      
+      SQLQuery1.SQL.Text := 'SELECT * FROM Customers';
+      SQLQuery1.Open;
+      
+      TeeGrid1.DataSource := DataSource1;
+    end;
+    ```
+  </Tab>
+  
+  <Tab title="ZeosLib">
+    ```pascal
+    uses
+      VCLTee.Grid, db, ZConnection, ZDataset;
+    
+    type
+      TForm1 = class(TForm)
+        TeeGrid1: TTeeGrid;
+        ZConnection1: TZConnection;
+        ZQuery1: TZQuery;
+        DataSource1: TDataSource;
+      end;
+    
+    procedure TForm1.FormCreate(Sender: TObject);
+    begin
+      ZConnection1.Protocol := 'mysql';
+      ZConnection1.Database := 'mydb';
+      ZConnection1.Connect;
+      
+      ZQuery1.SQL.Text := 'SELECT * FROM Products';
+      ZQuery1.Open;
+      
+      TeeGrid1.DataSource := DataSource1;
+    end;
+    ```
+  </Tab>
+</Tabs>
+
+### Complete Database Example
+
+<Accordion title="Lazarus Database Application">
+```pascal unit_main.pas
+unit unit_main;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
+  ExtCtrls, StdCtrls, VCLTee.Grid, db, dbf;
+
+type
+  TForm1 = class(TForm)
+    Button1: TButton;
+    DataSource1: TDataSource;
+    Dbf1: TDbf;
+    Panel1: TPanel;
+    TeeGrid1: TTeeGrid;
+    procedure Button1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+uses
+  VCLTee.Editor.Grid;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // DataSource property already set at design-time
+  // Not necessary: TeeGrid1.Data := TVirtualDBData.From(DataSource1);
+  
+  // Increase scrolling speed with datasets
+  TeeGrid1.Selected.ScrollToView := True;
+  
+  // Open DBF table
+  Dbf1.TableName := 'disco.dbf';
+  Dbf1.Open;
+end;
+
+procedure TForm1.Button1Click(Sender: TObject);
+begin
+  // Launch visual editor
+  TTeeGridEditor.Edit(Self, TeeGrid1);
+end;
+
+end.
+```
+</Accordion>
+
+## Cell Editing
+
+### LCL Editor Controls
+
+Lazarus supports standard LCL editor controls:
+
+```pascal
+uses
+  StdCtrls, ComCtrls, Spin;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Assign LCL editor controls
+  TeeGrid1.Columns['Date'].EditorClass := TDateEdit;
+  TeeGrid1.Columns['Time'].EditorClass := TTimeEdit;
+  TeeGrid1.Columns['Value'].EditorClass := TSpinEdit;
+  TeeGrid1.Columns['Comment'].EditorClass := TMemo;
+  TeeGrid1.Columns['Enabled'].EditorClass := TCheckBox;
+  TeeGrid1.Columns['Category'].EditorClass := TComboBox;
+end;
+```
+
+### Platform-Specific Editors
+
+Some editors may behave differently across widget sets:
+
+<Warning>
+  Editor appearance and behavior may vary between GTK2, GTK3, Qt5, and Cocoa widget sets. Test on your target platforms.
+</Warning>
+
+## Messages and Events
+
+### LCL Messages
+
+Lazarus uses LCL message types:
+
+```pascal VCLTee.Grid.pas:129
+{$IFDEF FPC}
+procedure WMSize(var Message: TLMSize); message LM_SIZE;
+procedure MouseLeave; override;
+{$ELSE}
+procedure WMSize(var Message: TWMSize); message WM_SIZE;
+procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
+{$ENDIF}
+```
+
+**Common LCL messages:**
+- `LM_SIZE` - Component resized
+- `LM_PAINT` - Repaint needed
+- `LM_SETFOCUS` - Component gained focus
+- `LM_KILLFOCUS` - Component lost focus
+
+## Scrolling
+
+### LCL ScrollBars
+
+Scrollbars work the same as in VCL:
+
+```pascal
+TeeGrid1.ScrollBars := ssBoth;
+TeeGrid1.ScrollBars := ssVertical;
+TeeGrid1.ScrollBars := ssHorizontal;
+TeeGrid1.ScrollBars := ssNone;
+
+// Enable drag scrolling
+TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+```
+
+## Themes
+
+### LCL Widget Themes
+
+TeeGrid adapts to the native LCL theme:
+
+```pascal
+uses
+  Tee.Grid.Themes;
+
+// Apply TeeGrid themes
+TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+TGridThemes.Android.ApplyTo(TeeGrid1.Grid);
+TGridThemes.Black.ApplyTo(TeeGrid1.Grid);
+```
+
+### Platform Native Appearance
+
+<Tabs>
+  <Tab title="GTK2/GTK3 (Linux)">
+    TeeGrid automatically uses GTK theme colors and fonts.
+    
+    ```pascal
+    // Follows system GTK theme
+    TeeGrid1.ParentFont := True;
+    TeeGrid1.ParentColor := True;
+    ```
+  </Tab>
+  
+  <Tab title="Qt5 (Linux/Windows)">
+    Uses Qt5 style sheets and colors.
+    
+    ```pascal
+    // Qt5 widget appearance
+    TeeGrid1.Font.Name := 'Sans';  // Qt font
+    ```
+  </Tab>
+  
+  <Tab title="Cocoa (macOS)">
+    Native macOS appearance with Cocoa widgets.
+    
+    ```pascal
+    // macOS native look
+    TeeGrid1.Font.Name := 'Helvetica Neue';
+    ```
+  </Tab>
+  
+  <Tab title="Win32/Win64 (Windows)">
+    Standard Windows appearance.
+    
+    ```pascal
+    // Windows theme support
+    TeeGrid1.ParentBackground := True;
+    ```
+  </Tab>
+</Tabs>
+
+## Master-Detail Grids
+
+### Two-Grid Master-Detail
+
+<Accordion title="Master-Detail with Two TeeGrids">
+```pascal unit_masterdetail_twogrids.pas
+unit unit_masterdetail_twogrids;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, Forms, Controls, ExtCtrls,
+  VCLTee.Grid, db;
+
+type
+  TFormMasterDetail = class(TForm)
+    TeeGridMaster: TTeeGrid;
+    TeeGridDetail: TTeeGrid;
+    DataSourceMaster: TDataSource;
+    DataSourceDetail: TDataSource;
+    Panel1: TPanel;
+    Splitter1: TSplitter;
+    procedure FormCreate(Sender: TObject);
+    procedure TeeGridMasterSelect(Sender: TObject);
+  end;
+
+implementation
+
+procedure TFormMasterDetail.FormCreate(Sender: TObject);
+begin
+  // Bind grids to data sources
+  TeeGridMaster.DataSource := DataSourceMaster;
+  TeeGridDetail.DataSource := DataSourceDetail;
+  
+  // Enable full row selection
+  TeeGridMaster.Selected.FullRow := True;
+  TeeGridDetail.Selected.FullRow := True;
+end;
+
+procedure TFormMasterDetail.TeeGridMasterSelect(Sender: TObject);
+begin
+  // Update detail when master selection changes
+  // (Automatic if DataSource.DataSet is linked via MasterSource)
+end;
+
+end.
+```
+</Accordion>
+
+## Performance Optimization
+
+### Lazarus-Specific Tips
+
+<AccordionGroup>
+  <Accordion title="Widget Set Selection">
+    Choose the appropriate widget set for your target platform:
+    
+    - **GTK2**: Fastest on older Linux systems
+    - **GTK3**: Modern Linux with better HiDPI support
+    - **Qt5**: Best cross-platform consistency
+    - **Cocoa**: Required for macOS
+    - **Win32/Win64**: Native Windows performance
+  </Accordion>
+  
+  <Accordion title="Disable Visual Themes">
+    ```pascal
+    // In project options:
+    // Project → Project Options → Application → Theme
+    // Uncheck "Use LCL platform default"
+    ```
+    
+    Can improve performance on some platforms.
+  </Accordion>
+  
+  <Accordion title="Optimize Compiler Settings">
+    ```pascal
+    // Project → Project Options → Compiler Options
+    // Optimization level: -O3
+    // Smart linking: Enabled
+    ```
+  </Accordion>
+  
+  <Accordion title="Dataset Scrolling">
+    ```pascal
+    TeeGrid1.Selected.ScrollToView := True;
+    ```
+    
+    Critical for smooth scrolling with database datasets.
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+### Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Unit not found errors">
+    **Problem:** `Fatal: Cannot find VCLTee.Grid used by...`
+    
+    **Solution:**
+    1. Add TeeGrid source paths to Project Options → Paths
+    2. Add: `TeeGrid/src/delphi/VCL` and `TeeGrid/src/delphi`
+    3. Rebuild project
+  </Accordion>
+  
+  <Accordion title="Type mismatch with TDataSource">
+    **Problem:** `Incompatible type for arg no. 1: Got "TDataSource", expected "TComponent"`
+    
+    **Solution:**
+    ```pascal
+    // DataSource property accepts TComponent
+    TeeGrid1.DataSource := DataSource1;  // Correct
+    
+    // Or use the Data property
+    TeeGrid1.Data := TVirtualDBData.From(DataSource1);
+    ```
+  </Accordion>
+  
+  <Accordion title="Access violation on Linux">
+    **Problem:** Crashes on GTK2/GTK3
+    
+    **Solution:**
+    1. Check for nil objects before accessing
+    2. Use try-finally blocks for resource cleanup
+    3. Test with different widget sets (GTK2 vs GTK3)
+  </Accordion>
+  
+  <Accordion title="High DPI display issues">
+    **Problem:** Blurry text or small controls on HiDPI screens
+    
+    **Solution:**
+    ```pascal
+    // Enable HiDPI support in project
+    Application.Scaled := True;
+    TeeGrid1.Font.Height := ScaleY(12, 96);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Complete Example
+
+<Accordion title="Full Lazarus Application">
+```pascal unit_main.pas
+unit unit_main;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
+  ExtCtrls, StdCtrls, ComCtrls, Spin,
+  VCLTee.Grid, db, dbf;
+
+type
+  TForm1 = class(TForm)
+    TeeGrid1: TTeeGrid;
+    Dbf1: TDbf;
+    DataSource1: TDataSource;
+    Panel1: TPanel;
+    BtnEdit: TButton;
+    BtnExport: TButton;
+    CheckFullRow: TCheckBox;
+    procedure FormCreate(Sender: TObject);
+    procedure BtnEditClick(Sender: TObject);
+    procedure BtnExportClick(Sender: TObject);
+    procedure CheckFullRowChange(Sender: TObject);
+    procedure TeeGrid1Select(Sender: TObject);
+  private
+    procedure SetupGrid;
+    procedure SetupDatabase;
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+uses
+  VCLTee.Editor.Grid, Tee.Grid.Themes;
+
+{$R *.lfm}
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  SetupDatabase;
+  SetupGrid;
+end;
+
+procedure TForm1.SetupDatabase;
+begin
+  // Configure and open DBF table
+  Dbf1.TableName := 'customers.dbf';
+  Dbf1.Open;
+end;
+
+procedure TForm1.SetupGrid;
+begin
+  // Bind to database
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Performance optimization
+  TeeGrid1.Selected.ScrollToView := True;
+  
+  // Appearance
+  TeeGrid1.Rows.Height.Value := 32;
+  TeeGrid1.Cells.TextAlign.Vertical := TVerticalAlign.Center;
+  TeeGrid1.Selected.FullRow := True;
+  
+  // Theme
+  TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+  
+  // Scrolling
+  TeeGrid1.ScrollBars := ssBoth;
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+  
+  // Editing
+  TeeGrid1.Editing.AutoEdit := True;
+  TeeGrid1.Editing.EnterKey := TEditingEnter.NextRow;
+end;
+
+procedure TForm1.BtnEditClick(Sender: TObject);
+begin
+  // Launch visual editor
+  TTeeGridEditor.Edit(Self, TeeGrid1);
+end;
+
+procedure TForm1.BtnExportClick(Sender: TObject);
+begin
+  // Export to clipboard
+  TeeGrid1.Grid.Copy;
+  ShowMessage('Data copied to clipboard');
+end;
+
+procedure TForm1.CheckFullRowChange(Sender: TObject);
+begin
+  TeeGrid1.Selected.FullRow := CheckFullRow.Checked;
+end;
+
+procedure TForm1.TeeGrid1Select(Sender: TObject);
+begin
+  // Handle selection change
+  Caption := Format('Selected Row: %d', [TeeGrid1.Selected.Row]);
+end;
+
+end.
+```
+</Accordion>
+
+## Deployment
+
+### Building for Distribution
+
+<Steps>
+  <Step title="Set build mode to Release">
+    Project → Project Options → Compiler Options → Build Mode → Release
+  </Step>
+  
+  <Step title="Configure optimization">
+    - Optimization level: -O3
+    - Smart linking: Enabled
+    - Strip symbols: Enabled (for smaller executable)
+  </Step>
+  
+  <Step title="Build executable">
+    ```bash
+    lazbuild --build-mode=Release myproject.lpi
+    ```
+  </Step>
+  
+  <Step title="Include required libraries">
+    **Linux:**
+    - GTK2/GTK3 libraries (usually pre-installed)
+    - Database client libraries if needed
+    
+    **macOS:**
+    - Application bundle with frameworks
+    
+    **Windows:**
+    - Usually no extra DLLs needed (static linking)
+  </Step>
+</Steps>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="VCL Framework" icon="windows" href="/frameworks/vcl">
+    Native Windows VCL implementation
+  </Card>
+  
+  <Card title="FireMonkey Framework" icon="mobile" href="/frameworks/firemonkey">
+    Cross-platform FMX alternative
+  </Card>
+  
+  <Card title="Data Binding" icon="database" href="/concepts/data-binding">
+    Connect to datasets and other data sources
+  </Card>
+  
+  <Card title="Cell Editing" icon="pen" href="/features/cell-editing">
+    Editor controls and customization
+  </Card>
+</CardGroup>

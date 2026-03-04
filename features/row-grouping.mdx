@@ -1,0 +1,412 @@
+---
+title: Row Grouping
+description: Organize grid data with row groups and sub-grids
+---
+
+TeeGrid uses `TRowGroup` objects to organize rows. Each grid has a root row group, and you can create sub-groups for hierarchical layouts.
+
+## Understanding TRowGroup
+
+A `TRowGroup` is a band that contains:
+
+- **Columns** - Column definitions
+- **Rows** - Data rows
+- **Header** - Column header band
+- **Headers** - Additional header bands collection
+- **Footer** - Footer bands collection
+- **Data** - Associated data source
+
+Each row group is self-contained with its own formatting and behavior.
+
+## Root Row Group
+
+Access the main grid's row group:
+
+```delphi
+// The root group contains all primary grid data
+var
+  RootGroup: TRowGroup;
+begin
+  RootGroup := TeeGrid1.Grid.Root;
+  ShowMessage('Root has ' + IntToStr(RootGroup.Data.Count) + ' rows');
+end;
+```
+
+## Current Row Group
+
+The focused/active row group:
+
+```delphi
+// Get current focused group
+var
+  CurrentGroup: TRowGroup;
+begin
+  CurrentGroup := TeeGrid1.Grid.Current;
+  
+  // Current might be root or a detail group
+  if CurrentGroup = TeeGrid1.Grid.Root then
+    ShowMessage('Root is focused')
+  else
+    ShowMessage('Detail group is focused');
+end;
+
+// Set current group
+TeeGrid1.Grid.Current := SomeOtherGroup;
+```
+
+## Row Group Properties
+
+Each row group has independent properties:
+
+```delphi
+procedure ConfigureGroup(Group: TRowGroup);
+begin
+  // Columns
+  Group.Columns.Add('Name');
+  Group.Columns.Add('Value');
+  
+  // Cell formatting
+  Group.Cells.Format.Font.Color := clBlack;
+  Group.Cells.Format.Font.Size := 10;
+  
+  // Row formatting
+  Group.Rows.Height.Value := 25;
+  Group.Rows.Alternate.Visible := True;
+  Group.Rows.Alternate.Brush.Color := clLightGray;
+  
+  // Header
+  Group.Header.Visible := True;
+  Group.Header.Format.Brush.Color := clNavy;
+  Group.Header.Format.Font.Color := clWhite;
+  
+  // Selection
+  Group.Selected.Format.Brush.Color := clHighlight;
+  Group.Selected.Format.Font.Color := clWhite;
+  
+  // Margins
+  Group.Margins.Left.Value := 5;
+  Group.Margins.Right.Value := 5;
+  
+  // Read-only
+  Group.ReadOnly := False;
+end;
+```
+
+## Creating Sub-Groups
+
+Sub-groups are created through master-detail expansion:
+
+```delphi
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Setup expander on root group
+  SetupExpander(TeeGrid1.Grid.Root);
+  
+  // Event fired when detail group is created
+  TeeGrid1.Grid.Root.OnNewDetail := DetailGroupCreated;
+end;
+
+procedure TForm1.DetailGroupCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // NewGroup is the sub-group
+  ConfigureGroup(NewGroup);
+  
+  // Can create another level of sub-groups
+  SetupExpander(NewGroup);
+  NewGroup.OnNewDetail := SubDetailCreated;
+end;
+```
+
+## Row Group Hierarchy
+
+Navigate the group hierarchy:
+
+```delphi
+var
+  Group: TRowGroup;
+begin
+  Group := TeeGrid1.Grid.Current;
+  
+  // Check if this is a detail group
+  if Group.IParent <> nil then
+  begin
+    // This is a sub-group, IParent is the parent group
+    ShowMessage('This is a detail group');
+    
+    // Access parent group
+    Group := Group.IParent;
+  end;
+  
+  // Check if this is the root
+  if Group = TeeGrid1.Grid.Root then
+    ShowMessage('This is the root group');
+end;
+```
+
+## Group-Specific Data
+
+Each group has its own data source:
+
+```delphi
+procedure TForm1.GetDetailData(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+var
+  DetailData: TArray<TOrderItem>;
+begin
+  // Get detail data for this row
+  DetailData := GetOrderItems(ARow);
+  
+  // Create data source for detail group
+  AData := TVirtualArrayData<TOrderItem>.Create(DetailData);
+end;
+
+procedure TForm1.DetailGroupCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // The detail group now has its own Data property
+  ShowMessage('Detail has ' + IntToStr(NewGroup.Data.Count) + ' rows');
+end;
+```
+
+## Group-Specific Columns
+
+Detail groups can have different columns:
+
+```delphi
+procedure TForm1.DetailGroupCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Detail group inherits columns from its data
+  // But you can customize them
+  
+  if NewGroup.Columns.Count > 0 then
+  begin
+    NewGroup.Columns[0].Width.Value := 100;
+    NewGroup.Columns[0].Header.Text := 'Order Item';
+  end;
+  
+  // Or add calculated columns
+  var CalcCol := NewGroup.Columns.Add('Total');
+  CalcCol.ReadOnly := True;
+end;
+```
+
+## Group Selection
+
+Each group has independent selection:
+
+```delphi
+procedure TForm1.DetailGroupCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Selection in detail group
+  NewGroup.Selected.Format.Brush.Color := clYellow;
+  NewGroup.Selected.Format.Brush.Visible := True;
+  
+  // Handle selection changes
+  NewGroup.OnChangedSelected := DetailSelectionChanged;
+end;
+
+procedure TForm1.DetailSelectionChanged(Sender: TObject);
+var
+  Group: TRowGroup;
+begin
+  Group := TRowGroup(Sender);
+  
+  // Get selected row in this group
+  if Group.Selected.Row >= 0 then
+    ShowMessage('Selected row ' + IntToStr(Group.Selected.Row) + 
+                ' in detail group');
+end;
+```
+
+## Scrolling in Groups
+
+Each group has independent scrolling:
+
+```delphi
+procedure ConfigureScrolling(Group: TRowGroup);
+begin
+  // Scrolling mode
+  Group.Scrolling.Mode := TScrollingMode.Both;  // Touch and mouse
+  
+  // Scroll direction
+  Group.Scrolling.Horizontal := TScrollDirection.Normal;
+  Group.Scrolling.Vertical := TScrollDirection.Normal;
+  
+  // Programmatic scrolling
+  Group.Scroll(0, 100);  // Scroll 100 pixels down
+end;
+```
+
+## Group Painting
+
+Customize group appearance:
+
+```delphi
+procedure TForm1.DetailGroupCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Background
+  NewGroup.Format.Brush.Color := TAlphaColors.Beige;
+  NewGroup.Format.Brush.Visible := True;
+  
+  // Border
+  NewGroup.Format.Stroke.Color := TAlphaColors.Gray;
+  NewGroup.Format.Stroke.Width := 2;
+  NewGroup.Format.Stroke.Visible := True;
+end;
+```
+
+## Multiple Independent Grids
+
+You can have multiple grids, each with its own root group:
+
+```delphi
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Grid 1 - Customers
+  TeeGrid1.Data := CustomersData;
+  TeeGrid1.Grid.Root.Cells.Format.Font.Color := clBlue;
+  
+  // Grid 2 - Products  
+  TeeGrid2.Data := ProductsData;
+  TeeGrid2.Grid.Root.Cells.Format.Font.Color := clGreen;
+  
+  // Each grid has independent root groups
+end;
+```
+
+## Accessing All Groups
+
+Iterate through all row groups:
+
+```delphi
+procedure TForm1.IterateGroups(Group: TRowGroup; Level: Integer);
+var
+  I: Integer;
+  ChildBand: TGridBand;
+  ChildGroup: TRowGroup;
+begin
+  ShowMessage('Group at level ' + IntToStr(Level) + 
+              ' has ' + IntToStr(Group.Data.Count) + ' rows');
+  
+  // Iterate children (expanded detail grids)
+  for I := 0 to Group.Rows.Children.Count - 1 do
+  begin
+    ChildBand := Group.Rows.Children.Row[I];
+    
+    if ChildBand is TRowGroup then
+    begin
+      ChildGroup := TRowGroup(ChildBand);
+      IterateGroups(ChildGroup, Level + 1);  // Recurse
+    end;
+  end;
+end;
+
+// Start from root
+IterateGroups(TeeGrid1.Grid.Root, 0);
+```
+
+## Group Context Menu
+
+Different context menus for different groups:
+
+```delphi
+procedure TForm1.TeeGrid1ContextPopup(Sender: TObject; MousePos: TPoint;
+  var Handled: Boolean);
+var
+  Group: TRowGroup;
+begin
+  Group := TeeGrid1.Grid.Current;
+  
+  if Group = TeeGrid1.Grid.Root then
+    PopupMenu1.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y)  // Master menu
+  else
+    PopupMenu2.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y); // Detail menu
+  
+  Handled := True;
+end;
+```
+
+## Programmatic Group Creation
+
+Manually create row groups (advanced):
+
+```delphi
+var
+  NewGroup: TRowGroup;
+  MyData: TVirtualData;
+begin
+  // Create data
+  MyData := TVirtualArrayData<TMyRecord>.Create(MyArray);
+  
+  // Create group
+  NewGroup := TRowGroup.Create(nil, MyData);
+  NewGroup.OwnsData := True;  // Group will free data
+  
+  // Configure group
+  ConfigureGroup(NewGroup);
+  
+  // Add as child of parent row
+  // (This is normally done automatically by expander)
+end;
+```
+
+## Group Events
+
+### OnChangedSelected
+
+Fired when selection changes in the group:
+
+```delphi
+Group.OnChangedSelected := GroupSelectionChanged;
+
+procedure TForm1.GroupSelectionChanged(Sender: TObject);
+var
+  Group: TRowGroup;
+begin
+  Group := TRowGroup(Sender);
+  // Handle selection change
+end;
+```
+
+### OnNewDetail
+
+Fired when a detail sub-group is created:
+
+```delphi
+Group.OnNewDetail := DetailCreated;
+
+procedure TForm1.DetailCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Configure new detail group
+end;
+```
+
+## Focused Groups
+
+Determine which group has focus:
+
+```delphi
+var
+  Group: TRowGroup;
+begin
+  Group := TeeGrid1.Grid.Current;
+  
+  if Group.IsFocused then
+    ShowMessage('This group has focus');
+  
+  // Move focus to another group
+  AnotherGroup.IsFocused := True;
+  TeeGrid1.Grid.Current := AnotherGroup;
+end;
+```
+
+## Best Practices
+
+- Use `OnNewDetail` to configure detail groups when they're created
+- Store references to important groups in form fields if needed
+- Use `Current` to determine which group has focus
+- Apply consistent formatting within group levels
+- Each group can have completely different columns and data
+- Remember that selection, scrolling, and formatting are per-group
+- Use distinct colors for different hierarchy levels
+- Clean up expanded groups when not needed to save memory
+- Use `OwnsData := True` so groups manage their data lifecycle

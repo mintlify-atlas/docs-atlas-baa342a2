@@ -1,0 +1,808 @@
+---
+title: TFormat
+description: Formatting classes for visual styles, colors, and appearance in TeeGrid
+---
+
+## Overview
+
+The `TFormat` unit provides framework-agnostic formatting classes for defining visual styles in TeeGrid. These classes work identically across VCL, FireMonkey, and Lazarus frameworks.
+
+**Unit**: `Tee.Format.pas`
+
+## Class Hierarchy
+
+```
+TPersistent
+└── TPersistentChange
+    ├── TBrush
+    ├── TFont
+    ├── TStroke
+    ├── TFormat
+    │   ├── TVisibleFormat
+    │   └── TTextFormat
+    ├── TGradient
+    ├── TPicture
+    └── TCoordinate
+```
+
+## TPersistentChange
+
+Base class for all format classes with change notification.
+
+### Constructor
+
+```pascal
+Constructor Create(const AChanged: TNotifyEvent);
+```
+
+Creates a new instance with change notification.
+
+**Parameters**:
+- `AChanged`: Event handler called when properties change
+
+### Properties
+
+#### OnChange
+
+```pascal
+property OnChange: TNotifyEvent read IChanged write IChanged;
+```
+
+Event fired when any property changes.
+
+## TColor Type
+
+```pascal
+type
+  TColor = TAlphaColor; // FMX/Modern Delphi
+  // or
+  TColor = Graphics.TColor; // VCL/Lazarus
+```
+
+Unified color type supporting RGBA on all platforms.
+
+### TColorHelper
+
+Helper record for color manipulation.
+
+#### From
+
+```pascal
+class function From(const AColor: TColor; const AOpacity: Single): TColor; static;
+```
+
+Creates a color with specified opacity.
+
+**Parameters**:
+- `AColor`: Base color
+- `AOpacity`: Opacity (0.0 - 1.0)
+
+**Example**:
+```pascal
+var
+  SemiTransparent: TColor;
+begin
+  SemiTransparent := TColorHelper.From(clRed, 0.5); // 50% transparent red
+end;
+```
+
+#### Opacity
+
+```pascal
+class function Opacity(const AColor: TColor): Byte; static;
+```
+
+Extracts the opacity byte from a color.
+
+#### Split
+
+```pascal
+class function Split(const AColor: TColor; out AOpacity: Single): TColor; static;
+```
+
+Splits color into RGB and opacity components.
+
+## TBrush
+
+Defines fill properties for shapes and backgrounds.
+
+### Properties
+
+#### Color
+
+```pascal
+property Color: TColor read FColor write SetColor;
+```
+
+Solid fill color.
+
+**Example**:
+```pascal
+Brush.Color := clYellow;
+```
+
+#### Gradient
+
+```pascal
+property Gradient: TGradient read GetGradient write SetGradient;
+```
+
+Gradient fill (takes precedence over solid color).
+
+**Example**:
+```pascal
+Brush.Gradient.Visible := True;
+Brush.Gradient.Direction := TGradientDirection.Vertical;
+Brush.Gradient.Colors[0].Color := clWhite;
+Brush.Gradient.Colors[1].Color := clBlue;
+```
+
+#### Picture
+
+```pascal
+property Picture: TPicture read GetPicture write SetPicture;
+```
+
+Image fill (takes precedence over color and gradient).
+
+#### Visible
+
+```pascal
+property Visible: Boolean read FVisible write SetVisible;
+```
+
+Controls whether the brush is used for filling.
+
+### Methods
+
+#### InitColor
+
+```pascal
+procedure InitColor(const AColor: TColor);
+```
+
+Sets default color without triggering change notification.
+
+### Usage Example
+
+```pascal
+var
+  Brush: TBrush;
+begin
+  Brush := TBrush.Create(nil);
+  try
+    Brush.Color := clLightBlue;
+    Brush.Visible := True;
+    
+    // Use with painter
+    Painter.SetBrush(Brush);
+    Painter.Fill(RectF(0, 0, 100, 50));
+  finally
+    Brush.Free;
+  end;
+end;
+```
+
+## TStroke
+
+Defines outline/border properties.
+
+### Properties
+
+#### Color
+
+```pascal
+property Color: TColor read GetColor write SetColor;
+```
+
+Stroke color.
+
+#### Size
+
+```pascal
+property Size: Single read FSize write SetSize;
+```
+
+Stroke width in pixels (default: 1).
+
+#### Style
+
+```pascal
+property Style: TStrokeStyle read FStyle write SetStyle;
+```
+
+**Values**:
+- `Solid`: Continuous line
+- `Dash`: Dashed line
+- `Dot`: Dotted line
+- `DashDot`: Dash-dot pattern
+- `DashDotDot`: Dash-dot-dot pattern
+- `Custom`: Custom pattern
+
+#### EndStyle
+
+```pascal
+property EndStyle: TStrokeEnd read FEnd write SetEnd;
+```
+
+**Values**:
+- `Flat`: Square end at endpoint (default)
+- `Round`: Rounded end
+- `Square`: Square end extending beyond endpoint
+
+#### JoinStyle
+
+```pascal
+property JoinStyle: TStrokeJoin read FJoin write SetJoin;
+```
+
+**Values**:
+- `Mitter`: Sharp corner (default)
+- `Round`: Rounded corner
+- `Bevel`: Beveled corner
+
+#### Visible
+
+```pascal
+property Visible: Boolean read FVisible write SetVisible;
+```
+
+Controls whether the stroke is drawn.
+
+### Constructors
+
+#### Create
+
+```pascal
+Constructor Create(const AChanged: TNotifyEvent);
+```
+
+Creates stroke with default visible = True.
+
+#### CreateColor
+
+```pascal
+Constructor CreateColor(const AChanged: TNotifyEvent; const AColor: TColor);
+```
+
+Creates stroke with specified color.
+
+### Usage Example
+
+```pascal
+var
+  Stroke: TStroke;
+begin
+  Stroke := TStroke.Create(nil);
+  try
+    Stroke.Color := clBlack;
+    Stroke.Size := 2;
+    Stroke.Style := TStrokeStyle.Dash;
+    Stroke.Visible := True;
+    
+    Painter.SetStroke(Stroke);
+    Painter.Draw(RectF(0, 0, 100, 50));
+  finally
+    Stroke.Free;
+  end;
+end;
+```
+
+## THiddenStroke
+
+TStroke with default Visible = False.
+
+```pascal
+type
+  THiddenStroke = class(TStroke)
+  published
+    property Visible default False;
+  end;
+```
+
+Useful for borders that are hidden by default.
+
+## TFont
+
+Defines text font properties.
+
+### Properties
+
+#### Name
+
+```pascal
+property Name: String read FName write SetName;
+```
+
+Font family name (e.g., "Arial", "Segoe UI").
+
+**Default**: Platform-dependent (TFont.DefaultName)
+
+#### Size
+
+```pascal
+property Size: Single read FSize write SetSize;
+```
+
+Font size in points.
+
+**Default**: Platform-dependent (TFont.DefaultSize)
+
+#### Style
+
+```pascal
+property Style: TFontStyles read FStyle write SetStyle;
+```
+
+Font style set:
+- `fsBold`: Bold text
+- `fsItalic`: Italic text
+- `fsUnderline`: Underlined text
+- `fsStrikeOut`: Strikethrough text
+
+**Example**:
+```pascal
+Font.Style := [fsBold, fsItalic];
+```
+
+#### Color
+
+```pascal
+property Color: TColor read GetColor write SetColor;
+```
+
+Font color (shortcut for Font.Brush.Color).
+
+#### Brush
+
+```pascal
+property Brush: TBrush read FBrush write SetBrush;
+```
+
+Font brush (allows gradient or picture text).
+
+### Class Variables
+
+```pascal
+class var
+  DefaultSize: Single;
+  DefaultName: String;
+```
+
+Global default font settings.
+
+### Usage Example
+
+```pascal
+var
+  Font: TFont;
+begin
+  Font := TFont.Create(nil);
+  try
+    Font.Name := 'Segoe UI';
+    Font.Size := 12;
+    Font.Style := [fsBold];
+    Font.Color := clNavy;
+    
+    Painter.SetFont(Font);
+    Painter.TextOut(RectF(0, 0, 100, 30), 'Bold Text');
+  finally
+    Font.Free;
+  end;
+end;
+```
+
+## TGradient
+
+Defines gradient fill properties.
+
+### Properties
+
+#### Direction
+
+```pascal
+property Direction: TGradientDirection read FDirection write SetDirection;
+```
+
+**Values**:
+- `Vertical`: Top to bottom
+- `Horizontal`: Left to right
+- `Diagonal`: Top-left to bottom-right
+- `BackDiagonal`: Top-right to bottom-left
+- `Radial`: Center outward
+
+#### Colors
+
+```pascal
+property Colors: TGradientColors read FColors write SetColors;
+```
+
+Gradient color stops.
+
+**Example**:
+```pascal
+Gradient.Colors.Clear;
+Gradient.Colors.Add(clWhite, 0.0);   // Start color
+Gradient.Colors.Add(clBlue, 0.5);    // Middle color
+Gradient.Colors.Add(clNavy, 1.0);    // End color
+```
+
+#### Angle
+
+```pascal
+property Angle: TAngle read FAngle write SetAngle;
+```
+
+Rotation angle (0-360 degrees) for linear gradients.
+
+#### Inverted
+
+```pascal
+property Inverted: Boolean read FInverted write SetInverted;
+```
+
+Reverses gradient direction.
+
+#### Visible
+
+```pascal
+property Visible: Boolean read FVisible write SetVisible;
+```
+
+Enables gradient rendering.
+
+### Methods
+
+#### InitColors
+
+```pascal
+procedure InitColors(const AColor0, AColor1: TColor);
+```
+
+Initializes a two-color gradient.
+
+### Usage Example
+
+```pascal
+var
+  Brush: TBrush;
+begin
+  Brush := TBrush.Create(nil);
+  try
+    Brush.Gradient.Visible := True;
+    Brush.Gradient.Direction := TGradientDirection.Vertical;
+    Brush.Gradient.InitColors(clWhite, clBlue);
+    
+    Painter.SetBrush(Brush);
+    Painter.Fill(RectF(0, 0, 200, 100));
+  finally
+    Brush.Free;
+  end;
+end;
+```
+
+## TPicture
+
+Defines image/bitmap properties.
+
+### Properties
+
+#### Stretch
+
+```pascal
+Stretch: Boolean;
+```
+
+Controls whether picture is stretched to fill bounds.
+
+### Methods
+
+#### LoadFromFile
+
+```pascal
+procedure LoadFromFile(const AFileName: String);
+```
+
+Loads picture from file.
+
+#### SetGraphic
+
+```pascal
+procedure SetGraphic(const AObject: TObject);
+```
+
+Sets picture from a graphic object.
+
+#### Clear
+
+```pascal
+procedure Clear;
+```
+
+Clears the picture.
+
+### Usage Example
+
+```pascal
+var
+  Brush: TBrush;
+begin
+  Brush := TBrush.Create(nil);
+  try
+    Brush.Picture.LoadFromFile('background.png');
+    Brush.Picture.Stretch := True;
+    
+    Painter.SetBrush(Brush);
+    Painter.Fill(RectF(0, 0, 300, 200));
+  finally
+    Brush.Free;
+  end;
+end;
+```
+
+## TFormat
+
+Combines brush and stroke for complete shape formatting.
+
+### Properties
+
+#### Brush
+
+```pascal
+property Brush: TBrush read FBrush write SetBrush;
+```
+
+Fill properties.
+
+#### Stroke
+
+```pascal
+property Stroke: TStroke read FStroke write SetStroke;
+```
+
+Outline properties.
+
+### Methods
+
+#### ShouldPaint
+
+```pascal
+function ShouldPaint: Boolean;
+```
+
+Returns `True` if either brush or stroke is visible.
+
+### Usage Example
+
+```pascal
+var
+  Format: TFormat;
+begin
+  Format := TFormat.Create(nil);
+  try
+    // Setup fill
+    Format.Brush.Color := clYellow;
+    Format.Brush.Visible := True;
+    
+    // Setup border
+    Format.Stroke.Color := clBlack;
+    Format.Stroke.Size := 2;
+    Format.Stroke.Visible := True;
+    
+    // Paint
+    Painter.Paint(Format, RectF(0, 0, 100, 50));
+  finally
+    Format.Free;
+  end;
+end;
+```
+
+## TTextFormat
+
+Extends TFormat with font properties.
+
+### Properties
+
+#### Font
+
+```pascal
+property Font: TFont read FFont write SetFont;
+```
+
+Text font properties.
+
+### Inherited
+
+- `Brush`: Background fill
+- `Stroke`: Border outline
+
+### Usage Example
+
+```pascal
+var
+  Format: TTextFormat;
+begin
+  Format := TTextFormat.Create(nil);
+  try
+    // Background
+    Format.Brush.Color := clWhite;
+    
+    // Border
+    Format.Stroke.Color := clGray;
+    Format.Stroke.Visible := True;
+    
+    // Font
+    Format.Font.Name := 'Arial';
+    Format.Font.Size := 10;
+    Format.Font.Color := clBlack;
+    
+    // Use in column
+    Column.Format := Format;
+  finally
+    Format.Free;
+  end;
+end;
+```
+
+## TVisibleFormat
+
+TFormat with a Visible property.
+
+### Properties
+
+#### Visible
+
+```pascal
+property Visible: Boolean read FVisible write SetVisible;
+```
+
+Controls visibility of the entire format.
+
+### Methods
+
+#### Show / Hide
+
+```pascal
+procedure Show;
+procedure Hide;
+```
+
+Convenience methods for setting visibility.
+
+## TCoordinate
+
+Defines a coordinate value in pixels or percentage.
+
+### Properties
+
+#### Value
+
+```pascal
+property Value: Single read FValue write SetValue;
+```
+
+Coordinate value.
+
+#### Units
+
+```pascal
+property Units: TSizeUnits read FUnits write SetUnits;
+```
+
+**Values**:
+- `TSizeUnits.Pixels`: Absolute pixels
+- `TSizeUnits.Percent`: Percentage of container
+
+#### Automatic
+
+```pascal
+property Automatic: Boolean read FAutomatic write SetAutomatic;
+```
+
+Use automatic sizing.
+
+#### Pixels (Read-Only)
+
+```pascal
+property Pixels: Single read IPixels;
+```
+
+Calculated pixel value after calling `Prepare`.
+
+### Methods
+
+#### Prepare
+
+```pascal
+procedure Prepare(const ATotal: Single);
+```
+
+Calculates pixel value from percentage.
+
+**Parameters**:
+- `ATotal`: Total size for percentage calculation
+
+#### Calculate
+
+```pascal
+function Calculate(const ATotal: Single): Single;
+```
+
+Calculates and returns pixel value.
+
+### Usage Example
+
+```pascal
+var
+  Margin: TCoordinate;
+begin
+  Margin := TCoordinate.Create(nil);
+  try
+    // 5% margin
+    Margin.Units := TSizeUnits.Percent;
+    Margin.Value := 5;
+    Margin.Prepare(200); // Container width = 200
+    
+    ShowMessage('Margin: ' + FloatToStr(Margin.Pixels)); // 10 pixels
+  finally
+    Margin.Free;
+  end;
+end;
+```
+
+## Common Patterns
+
+### Creating Themed Formats
+
+```pascal
+function CreateHeaderFormat: TTextFormat;
+begin
+  Result := TTextFormat.Create(nil);
+  Result.Brush.Color := clNavy;
+  Result.Font.Color := clWhite;
+  Result.Font.Style := [fsBold];
+  Result.Stroke.Color := clGray;
+  Result.Stroke.Visible := True;
+end;
+
+function CreateAlternateRowFormat: TFormat;
+begin
+  Result := TFormat.Create(nil);
+  Result.Brush.Color := $00F5F5F5; // Light gray
+  Result.Brush.Visible := True;
+end;
+```
+
+### Reusing Formats
+
+```pascal
+type
+  TMyGrid = class
+  private
+    FHeaderFormat: TTextFormat;
+    FRowFormat: TFormat;
+  public
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
+constructor TMyGrid.Create;
+begin
+  inherited;
+  FHeaderFormat := CreateHeaderFormat;
+  FRowFormat := CreateAlternateRowFormat;
+end;
+
+destructor TMyGrid.Destroy;
+begin
+  FHeaderFormat.Free;
+  FRowFormat.Free;
+  inherited;
+end;
+```
+
+## See Also
+
+- [TPainter](/api/tpainter) - Uses format classes for rendering
+- [TRender](/api/trender) - Applies formats to grid elements
+- [Styling Guide](/customization/styling) - Visual customization examples

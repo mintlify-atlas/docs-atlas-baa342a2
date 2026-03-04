@@ -1,0 +1,122 @@
+---
+title: "Basic Grid Example"
+description: "Learn how to create a basic TeeGrid with simple data"
+---
+
+## Overview
+
+This example demonstrates how to create a basic TeeGrid and populate it with simple string data. TeeGrid can display tabular data with minimal setup.
+
+## Simple String Grid
+
+The easiest way to get started with TeeGrid is using `TStringsData` to create a grid with strings:
+
+```pascal
+uses
+  VCLTee.Control, VCLTee.Grid, Tee.GridData.Strings;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  Data: TStringsData;
+  Row, Column: Integer;
+begin
+  // Create a grid with 5 columns and 10 rows
+  Data := TStringsData.Create(5, 10);
+
+  // Set column headers
+  Data.Headers[0] := 'Name';
+  Data.Headers[1] := 'Age';
+  Data.Headers[2] := 'City';
+  Data.Headers[3] := 'Country';
+  Data.Headers[4] := 'Email';
+
+  // Fill cells with data
+  for Row := 0 to Data.Rows - 1 do
+  begin
+    Data[0, Row] := 'Person ' + IntToStr(Row + 1);
+    Data[1, Row] := IntToStr(20 + Random(50));
+    Data[2, Row] := 'City ' + IntToStr(Row);
+    Data[3, Row] := 'Country';
+    Data[4, Row] := 'email' + IntToStr(Row) + '@example.com';
+  end;
+
+  // Assign data to grid
+  TeeGrid1.Data := Data;
+end;
+```
+
+## Key Concepts
+
+### Creating Grid Data
+
+The `TStringsData` class creates a simple string-based grid:
+
+- **Columns and Rows**: Specify dimensions in the constructor
+- **Headers**: Set column headers using the `Headers[]` property
+- **Cell Data**: Access cells using `Data[Column, Row]`
+
+### Assigning Data to Grid
+
+Once you've created and populated your data object, simply assign it to the grid:
+
+```pascal
+TeeGrid1.Data := Data;
+```
+
+The grid automatically:
+- Creates columns based on the data structure
+- Calculates optimal column widths
+- Sets up scrollbars if needed
+- Enables cell editing
+
+## Basic Customization
+
+### Column Width
+
+```pascal
+// Set specific column width
+TeeGrid1.Columns[0].Width.Value := 150;
+
+// Auto-fit column width
+TeeGrid1.Columns[1].Width.Automatic := True;
+```
+
+### Row Height
+
+```pascal
+// Set all rows to same height
+TeeGrid1.Rows.Height.Value := 30;
+
+// Enable automatic row height (for multi-line text)
+TeeGrid1.Rows.Height.Automatic := True;
+```
+
+### Cell Alignment
+
+```pascal
+// Center-align a column
+TeeGrid1.Columns[1].TextAlignment := TColumnTextAlign.Custom;
+TeeGrid1.Columns[1].TextAlign.Horizontal := THorizontalAlign.Center;
+
+// Right-align numeric columns
+TeeGrid1.Columns[1].TextAlign.Horizontal := THorizontalAlign.Right;
+```
+
+## Features Demonstrated
+
+- Creating a basic grid with string data
+- Setting column headers
+- Populating cells with data
+- Basic formatting and alignment
+
+## Next Steps
+
+- Explore [Array Binding](/examples/array-binding) for structured data
+- Learn about [Database Grid](/examples/database-grid) for database integration
+- See [Custom Editors](/examples/custom-editors) for interactive cell editing
+
+## Related Examples
+
+- [Array Binding](/examples/array-binding)
+- [List Binding](/examples/list-binding)
+- [Virtual Mode](/examples/virtual-mode)

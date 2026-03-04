@@ -1,0 +1,316 @@
+---
+title: "Styling and Formatting"
+description: "Customize the visual appearance of your TeeGrid with formats, colors, fonts, and strokes"
+---
+
+TeeGrid provides comprehensive styling capabilities through the `TFormat`, `TTextFormat`, `TBrush`, `TStroke`, and `TFont` classes. You can customize colors, borders, fonts, and gradients for individual columns, cells, headers, and the entire grid.
+
+## Understanding Format Classes
+
+### TFormat
+
+The base formatting class that combines brush (fill) and stroke (border) properties:
+
+```pascal
+var
+  Format: TFormat;
+begin
+  Format := TFormat.Create(nil);
+  
+  // Set background color
+  Format.Brush.Color := TColors.LightGray;
+  Format.Brush.Visible := True;
+  
+  // Set border
+  Format.Stroke.Color := TColors.Black;
+  Format.Stroke.Size := 1;
+  Format.Stroke.Visible := True;
+end;
+```
+
+### TTextFormat
+
+Extends `TFormat` to include font properties for text rendering:
+
+```pascal
+var
+  TextFormat: TTextFormat;
+begin
+  TextFormat := TTextFormat.Create(nil);
+  
+  // Configure background and border
+  TextFormat.Brush.Color := TColors.White;
+  TextFormat.Stroke.Visible := False;
+  
+  // Configure font
+  TextFormat.Font.Name := 'Segoe UI';
+  TextFormat.Font.Size := 12;
+  TextFormat.Font.Color := TColors.Black;
+  TextFormat.Font.Style := [fsBold];
+end;
+```
+
+## Styling Grid Cells
+
+### Column-Level Formatting
+
+Apply custom formatting to an entire column:
+
+```pascal
+// Disable parent format to use custom formatting
+TeeGrid1.Columns[0].ParentFormat := False;
+
+// Set background color
+TeeGrid1.Columns[0].Format.Brush.Color := TColors.Cream;
+TeeGrid1.Columns[0].Format.Brush.Visible := True;
+
+// Set font properties
+TeeGrid1.Columns[0].Format.Font.Size := 11;
+TeeGrid1.Columns[0].Format.Font.Color := TColors.Navy;
+TeeGrid1.Columns[0].Format.Font.Style := [fsBold];
+```
+
+### Conditional Cell Formatting
+
+Use the `OnPaint` event to apply formatting based on cell values:
+
+```pascal
+procedure TForm1.Column1Paint(const Sender: TColumn; 
+  var AData: TRenderData; var DefaultPaint: Boolean);
+begin
+  // Highlight negative values in red
+  if StrToFloatDef(AData.Data, 0) < 0 then
+  begin
+    AData.Painter.SetFont(Sender.Format.Font);
+    AData.Painter.SetBrush(Sender.Format.Brush);
+    
+    // Override color
+    Sender.Format.Font.Color := TColors.Red;
+    Sender.Format.Brush.Color := TColors.Pink;
+  end;
+end;
+
+// Assign the event
+TeeGrid1.Columns['Amount'].OnPaint := Column1Paint;
+```
+
+### Alternating Row Colors
+
+Style odd and even rows differently:
+
+```pascal
+TeeGrid1.Grid.Rows.OnPaint := procedure(const Sender: TObject; 
+  const ARow: Integer; var AData: TRenderData; var DefaultPaint: Boolean)
+begin
+  if Odd(ARow) then
+  begin
+    AData.Painter.SetBrush(TeeGrid1.Cells.Format.Brush);
+    TeeGrid1.Cells.Format.Brush.Color := TColorHelper.From(TColors.LightGray, 0.3);
+  end;
+end;
+```
+
+## Colors and Opacity
+
+TeeGrid uses `TColor` (an alias for `TAlphaColor` in modern Delphi) which supports opacity:
+
+```pascal
+uses
+  Tee.Format;
+
+var
+  Color: TColor;
+begin
+  // Create color with 50% opacity
+  Color := TColorHelper.From(TColors.Blue, 0.5);
+  
+  // Extract opacity from a color
+  var Opacity := TColorHelper.Opacity(Color);  // Returns 0-255
+  
+  // Remove opacity from a color
+  var SolidColor := TColorHelper.RemoveOpacity(Color);
+end;
+```
+
+## Gradients
+
+Apply gradient fills to backgrounds:
+
+```pascal
+// Enable gradient for column background
+TeeGrid1.Columns[0].ParentFormat := False;
+TeeGrid1.Columns[0].Format.Brush.Gradient.Visible := True;
+
+// Configure gradient colors
+with TeeGrid1.Columns[0].Format.Brush.Gradient do
+begin
+  Direction := TGradientDirection.Vertical;
+  Colors.Clear;
+  Colors.Add(TColors.White, 0.0);    // Top color
+  Colors.Add(TColors.SkyBlue, 1.0);  // Bottom color
+  Inverted := False;
+end;
+```
+
+### Gradient Directions
+
+```pascal
+type
+  TGradientDirection = (Vertical, Horizontal, Diagonal, BackDiagonal, Radial);
+
+// Examples
+Gradient.Direction := TGradientDirection.Horizontal;  // Left to right
+Gradient.Direction := TGradientDirection.Radial;      // Center outward
+Gradient.Direction := TGradientDirection.Diagonal;    // Top-left to bottom-right
+```
+
+## Stroke Styles
+
+Customize borders and lines with different stroke styles:
+
+```pascal
+type
+  TStrokeStyle = (Solid, Dash, Dot, DashDot, DashDotDot, Custom);
+
+// Example: Dotted border
+TeeGrid1.Cells.Format.Stroke.Visible := True;
+TeeGrid1.Cells.Format.Stroke.Style := TStrokeStyle.Dot;
+TeeGrid1.Cells.Format.Stroke.Size := 1;
+TeeGrid1.Cells.Format.Stroke.Color := TColors.DkGray;
+```
+
+### Stroke End and Join Styles
+
+```pascal
+// Configure how lines end and join
+with TeeGrid1.Cells.Format.Stroke do
+begin
+  EndStyle := TStrokeEnd.Round;    // Round, Square, or Flat
+  JoinStyle := TStrokeJoin.Round;  // Round, Bevel, or Mitter
+end;
+```
+
+## Font Styles
+
+Configure text appearance:
+
+```pascal
+type
+  TFontStyle = (fsBold, fsItalic, fsUnderline, fsStrikeOut);
+  TFontStyles = set of TFontStyle;
+
+// Apply multiple font styles
+TeeGrid1.Columns['Name'].Format.Font.Style := [fsBold, fsItalic];
+TeeGrid1.Columns['Name'].Format.Font.Size := 14;
+TeeGrid1.Columns['Name'].Format.Font.Name := 'Arial';
+```
+
+## Margins and Padding
+
+Control spacing inside cells:
+
+```pascal
+// Set margins for a column
+with TeeGrid1.Columns[0].Margins do
+begin
+  Left.Value := 8;   // 8 pixels
+  Right.Value := 8;
+  Top.Value := 4;
+  Bottom.Value := 4;
+  
+  // Or use percentages
+  Left.Units := TSizeUnits.Percent;
+  Left.Value := 5;  // 5% of cell width
+end;
+```
+
+## Complete Styling Example
+
+Here's a comprehensive example that styles a financial data grid:
+
+```pascal
+procedure TForm1.StyleFinancialGrid;
+begin
+  // Grid-wide settings
+  TeeGrid1.Cells.Format.Brush.Color := TColors.White;
+  TeeGrid1.Cells.Format.Font.Name := 'Segoe UI';
+  TeeGrid1.Cells.Format.Font.Size := 10;
+  
+  // Style the Symbol column
+  with TeeGrid1.Columns['Symbol'] do
+  begin
+    ParentFormat := False;
+    Format.Font.Style := [fsBold];
+    Format.Font.Color := TColors.Navy;
+  end;
+  
+  // Style the Price column with currency formatting
+  with TeeGrid1.Columns['Price'] do
+  begin
+    ParentFormat := False;
+    Format.Font.Name := 'Consolas';
+    DataFormat.Float := '$0.00';
+  end;
+  
+  // Style the Change column with conditional colors
+  TeeGrid1.Columns['Change'].OnPaint := procedure(const Sender: TColumn;
+    var AData: TRenderData; var DefaultPaint: Boolean)
+  var
+    Value: Double;
+  begin
+    Value := StrToFloatDef(AData.Data, 0);
+    
+    Sender.ParentFormat := False;
+    if Value > 0 then
+    begin
+      Sender.Format.Font.Color := TColors.Green;
+      Sender.Format.Brush.Color := TColorHelper.From(TColors.Lime, 0.1);
+    end
+    else if Value < 0 then
+    begin
+      Sender.Format.Font.Color := TColors.Red;
+      Sender.Format.Brush.Color := TColorHelper.From(TColors.Pink, 0.1);
+    end;
+  end;
+end;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use ParentFormat wisely">
+    When `ParentFormat := True`, the column inherits formatting from `TeeGrid.Cells.Format`. Set to `False` only when you need column-specific styling.
+  </Accordion>
+  
+  <Accordion title="Performance considerations">
+    Avoid complex calculations in `OnPaint` events as they're called for every visible cell. Cache computed values when possible.
+  </Accordion>
+  
+  <Accordion title="Color contrast">
+    Ensure sufficient contrast between text and background colors for readability. Test with different themes and monitor settings.
+  </Accordion>
+  
+  <Accordion title="Consistent styling">
+    Define a consistent color scheme across your application. Consider creating reusable style presets.
+  </Accordion>
+</AccordionGroup>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Custom Renderers" icon="palette" href="/customization/custom-renderers">
+    Create custom cell renderers for specialized content
+  </Card>
+  
+  <Card title="Themes" icon="swatchbook" href="/features/themes">
+    Apply predefined themes to your grid
+  </Card>
+  
+  <Card title="Headers and Footers" icon="table" href="/customization/headers-footers">
+    Style grid headers and footer bands
+  </Card>
+  
+  <Card title="TFormat API" icon="code" href="/api/tformat">
+    Complete API reference for formatting classes
+  </Card>
+</CardGroup>

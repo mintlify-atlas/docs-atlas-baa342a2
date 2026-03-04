@@ -1,0 +1,529 @@
+---
+title: "Charts Integration Example"
+description: "Display TeeChart charts inside TeeGrid cells"
+---
+
+## Overview
+
+TeeGrid can display TeeChart chart instances directly in grid cells, creating powerful data visualizations within your grid. This is perfect for dashboards, reports, and visual data analysis.
+
+## Basic Chart Integration
+
+### Data Structure
+
+Create a record or class that includes a TChart instance:
+
+```pascal
+uses
+  VCLTee.Chart, VCLTee.Series;
+
+type
+  TMyData = record
+    Values: Array of Integer;
+    Chart: TChart;
+  end;
+```
+
+### Creating Chart Data
+
+```pascal
+var
+  MyData: TArray<TMyData>;
+
+procedure TChart_in_Grid.RandomData;
+
+  function NewChart(const AIndex: Integer): TChart;
+  begin
+    result := TChart.Create(Self);
+    result.AddSeries(TBarSeries).AddArray(MyData[AIndex].Values);
+  end;
+
+begin
+  SetLength(MyData, 3);
+  
+  MyData[0].Values := [20, 40, 15];
+  MyData[0].Chart := NewChart(0);
+  
+  MyData[1].Values := [120, 30, 150, 60];
+  MyData[1].Chart := NewChart(1);
+  
+  MyData[2].Values := [5, 9];
+  MyData[2].Chart := NewChart(2);
+end;
+```
+
+### Binding to Grid
+
+```pascal
+uses
+  Tee.GridData.Rtti;
+
+procedure TChart_in_Grid.FormCreate(Sender: TObject);
+begin
+  RandomData;
+  
+  // Bind array to grid - TChart will be automatically displayed
+  TeeGrid1.Data := TVirtualArrayData<TMyData>.Create(MyData);
+  
+  // Customize appearance
+  TeeGrid1.Rows.Height.Automatic := False;
+  TeeGrid1.Rows.Height.Value := 250;  // Make rows tall enough for charts
+  
+  TeeGrid1.Columns['Chart'].ReadOnly := True;
+  TeeGrid1.Columns['Chart'].Width.Value := 400;
+end;
+```
+
+## Complete Example
+
+From `Unit_Chart_and_Grid.pas`:
+
+```pascal
+unit Unit_Chart_and_Grid;
+
+interface
+
+uses
+  Vcl.Forms, VCLTee.Control, VCLTee.Grid;
+
+type
+  TChart_in_Grid = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  private
+    procedure RandomData;
+  end;
+
+implementation
+
+uses
+  Tee.GridData.Rtti, VCLTee.Chart, VCLTee.Series;
+
+type
+  TMyData = record
+    Values: Array of Integer;
+    Chart: TChart;
+  end;
+
+var
+  MyData: TArray<TMyData>;
+
+procedure TChart_in_Grid.RandomData;
+
+  function NewChart(const AIndex: Integer): TChart;
+  begin
+    result := TChart.Create(Self);
+    result.AddSeries(TBarSeries).AddArray(MyData[AIndex].Values);
+  end;
+
+begin
+  SetLength(MyData, 3);
+  
+  MyData[0].Values := [20, 40, 15];
+  MyData[0].Chart := NewChart(0);
+  
+  MyData[1].Values := [120, 30, 150, 60];
+  MyData[1].Chart := NewChart(1);
+  
+  MyData[2].Values := [5, 9];
+  MyData[2].Chart := NewChart(2);
+end;
+
+procedure TChart_in_Grid.FormCreate(Sender: TObject);
+begin
+  RandomData;
+  
+  TeeGrid1.Data := TVirtualArrayData<TMyData>.Create(MyData);
+  
+  // Cosmetics
+  TeeGrid1.Rows.Height.Automatic := False;
+  TeeGrid1.Rows.Height.Value := 250;
+  
+  TeeGrid1.Columns['Chart'].ReadOnly := True;
+  TeeGrid1.Columns['Chart'].Width.Value := 400;
+end;
+
+end.
+```
+
+## Advanced Chart Customization
+
+### Different Chart Types
+
+```pascal
+uses
+  VCLTee.TeEngine, VCLTee.Series;
+
+function CreateLineChart(const AData: Array of Double): TChart;
+var
+  Series: TLineSeries;
+begin
+  result := TChart.Create(Self);
+  
+  Series := TLineSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(AData);
+  
+  // Customize
+  Series.LinePen.Width := 2;
+  Series.Pointer.Visible := True;
+  
+  result.Legend.Visible := False;
+  result.View3D := False;
+end;
+
+function CreatePieChart(const AData: Array of Double): TChart;
+var
+  Series: TPieSeries;
+begin
+  result := TChart.Create(Self);
+  
+  Series := TPieSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(AData);
+  
+  result.Legend.Visible := True;
+  result.View3D := True;
+end;
+
+function CreateAreaChart(const AData: Array of Double): TChart;
+var
+  Series: TAreaSeries;
+begin
+  result := TChart.Create(Self);
+  
+  Series := TAreaSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(AData);
+  
+  Series.AreaLinesPen.Visible := True;
+  Series.Transparency := 50;
+end;
+```
+
+### Multiple Series
+
+```pascal
+function CreateMultiSeriesChart: TChart;
+var
+  Series1, Series2: TLineSeries;
+begin
+  result := TChart.Create(Self);
+  
+  // First series
+  Series1 := TLineSeries.Create(result);
+  Series1.ParentChart := result;
+  Series1.AddArray([10, 20, 15, 25]);
+  Series1.Title := 'Series 1';
+  
+  // Second series
+  Series2 := TLineSeries.Create(result);
+  Series2.ParentChart := result;
+  Series2.AddArray([15, 18, 22, 20]);
+  Series2.Title := 'Series 2';
+  
+  result.Legend.Visible := True;
+end;
+```
+
+## Chart Formatting
+
+### Remove Chart Borders and Background
+
+```pascal
+function CreateCleanChart(const AData: Array of Integer): TChart;
+begin
+  result := TChart.Create(Self);
+  result.AddSeries(TBarSeries).AddArray(AData);
+  
+  // Clean appearance
+  result.Legend.Visible := False;
+  result.Title.Visible := False;
+  result.View3D := False;
+  result.Color := clWhite;
+  result.Frame.Visible := False;
+  result.LeftAxis.Visible := False;
+  result.BottomAxis.Visible := False;
+end;
+```
+
+### Responsive Charts
+
+```pascal
+procedure SetupResponsiveCharts;
+begin
+  // Charts automatically resize with cell size
+  TeeGrid1.Rows.Height.Value := 200;
+  TeeGrid1.Columns['Chart'].Width.Value := 300;
+  
+  // Or use automatic sizing
+  TeeGrid1.Rows.Height.Automatic := True;
+  TeeGrid1.Columns['Chart'].Width.Automatic := True;
+end;
+```
+
+## Sparkline-Style Charts
+
+Create minimal charts for compact visualization:
+
+```pascal
+function CreateSparkline(const AData: Array of Double): TChart;
+var
+  Series: TLineSeries;
+begin
+  result := TChart.Create(Self);
+  
+  Series := TLineSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(AData);
+  
+  // Sparkline appearance
+  result.View3D := False;
+  result.Legend.Visible := False;
+  result.Title.Visible := False;
+  result.Color := clNone;  // Transparent background
+  result.Frame.Visible := False;
+  result.LeftAxis.Visible := False;
+  result.BottomAxis.Visible := False;
+  result.RightAxis.Visible := False;
+  result.TopAxis.Visible := False;
+  
+  Series.LinePen.Width := 1;
+  Series.Pointer.Visible := False;
+  Series.Color := clBlue;
+end;
+```
+
+## Use Cases
+
+### Sales Dashboard
+
+```pascal
+type
+  TSalesData = record
+    Product: String;
+    Sales: Array of Integer;  // Monthly sales
+    Chart: TChart;
+    Total: Integer;
+  end;
+
+function CreateSalesChart(const ASales: Array of Integer): TChart;
+var
+  Series: TBarSeries;
+begin
+  result := TChart.Create(Self);
+  
+  Series := TBarSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(ASales);
+  
+  result.Title.Text.Text := 'Monthly Sales';
+  result.BottomAxis.Title.Caption := 'Month';
+  result.LeftAxis.Title.Caption := 'Units';
+end;
+```
+
+### Stock Trends
+
+```pascal
+type
+  TStockData = record
+    Symbol: String;
+    Prices: Array of Double;
+    Chart: TChart;
+    Change: Double;
+  end;
+
+function CreateStockChart(const APrices: Array of Double): TChart;
+var
+  Series: TLineSeries;
+begin
+  result := TChart.Create(Self);
+  
+  Series := TLineSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(APrices);
+  
+  // Color based on trend
+  if APrices[High(APrices)] > APrices[Low(APrices)] then
+    Series.Color := clGreen
+  else
+    Series.Color := clRed;
+  
+  result.View3D := False;
+  result.Legend.Visible := False;
+end;
+```
+
+### Performance Metrics
+
+```pascal
+type
+  TMetricData = record
+    Name: String;
+    Values: Array of Double;
+    Target: Double;
+    Chart: TChart;
+  end;
+
+function CreateMetricChart(const AValues: Array of Double;
+  const ATarget: Double): TChart;
+var
+  Series: TLineSeries;
+  TargetSeries: TLineSeries;
+begin
+  result := TChart.Create(Self);
+  
+  // Actual values
+  Series := TLineSeries.Create(result);
+  Series.ParentChart := result;
+  Series.AddArray(AValues);
+  Series.Title := 'Actual';
+  
+  // Target line
+  TargetSeries := TLineSeries.Create(result);
+  TargetSeries.ParentChart := result;
+  TargetSeries.AddXY(0, ATarget);
+  TargetSeries.AddXY(Length(AValues) - 1, ATarget);
+  TargetSeries.Title := 'Target';
+  TargetSeries.LinePen.Style := psDash;
+  TargetSeries.Color := clRed;
+end;
+```
+
+## Interactive Charts
+
+### Clickable Charts
+
+```pascal
+type
+  TMyChart = class(TChart)
+  private
+    FRowIndex: Integer;
+    procedure DoClick(Sender: TObject);
+  public
+    property RowIndex: Integer read FRowIndex write FRowIndex;
+  end;
+
+procedure TMyChart.DoClick(Sender: TObject);
+begin
+  ShowMessage(Format('Clicked chart in row %d', [FRowIndex]));
+end;
+
+function CreateClickableChart(const AData: Array of Integer;
+  const ARowIndex: Integer): TChart;
+var
+  MyChart: TMyChart;
+begin
+  MyChart := TMyChart.Create(Self);
+  MyChart.RowIndex := ARowIndex;
+  MyChart.OnClick := MyChart.DoClick;
+  MyChart.AddSeries(TBarSeries).AddArray(AData);
+  result := MyChart;
+end;
+```
+
+## Performance Considerations
+
+### Lazy Chart Creation
+
+```pascal
+type
+  TChartData = record
+    Values: Array of Integer;
+  private
+    FChart: TChart;
+    function GetChart: TChart;
+  public
+    property Chart: TChart read GetChart;
+  end;
+
+function TChartData.GetChart: TChart;
+begin
+  if FChart = nil then
+  begin
+    FChart := TChart.Create(Application.MainForm);
+    FChart.AddSeries(TBarSeries).AddArray(Values);
+  end;
+  result := FChart;
+end;
+```
+
+### Memory Management
+
+```pascal
+procedure TForm1.FormDestroy(Sender: TObject);
+var
+  i: Integer;
+begin
+  // Free all charts
+  for i := 0 to High(MyData) do
+    MyData[i].Chart.Free;
+end;
+```
+
+## Key Concepts
+
+### Automatic Rendering
+
+TeeGrid automatically:
+- Detects TChart instances in your data
+- Renders them in the appropriate cells
+- Handles resizing
+- Manages paint events
+
+### Cell Sizing
+
+For best results:
+- Set row height large enough for charts (150-300 pixels)
+- Set column width appropriate for chart aspect ratio
+- Consider disabling automatic sizing for consistency
+
+### Read-Only Charts
+
+```pascal
+// Prevent editing chart cells
+TeeGrid1.Columns['Chart'].ReadOnly := True;
+```
+
+## Available Chart Types
+
+All TeeChart series types are supported:
+
+- **Line Charts**: TLineSeries, TFastLineSeries
+- **Bar Charts**: TBarSeries, THorizBarSeries
+- **Area Charts**: TAreaSeries
+- **Pie Charts**: TPieSeries, TDonutSeries
+- **Point Charts**: TPointSeries
+- **Bubble Charts**: TBubbleSeries
+- **Candlestick**: TCandleSeries
+- **Gantt**: TGanttSeries
+- And many more...
+
+## Best Practices
+
+1. **Set row height** explicitly for chart cells
+2. **Make chart columns read-only** to prevent editing
+3. **Simplify chart appearance** for grid display
+4. **Consider memory usage** with many charts
+5. **Use lazy loading** for large datasets
+6. **Free charts** in FormDestroy
+
+## Limitations
+
+- Charts increase memory usage
+- Too many visible charts can impact performance
+- Consider using images for static charts
+- For thousands of rows, use sparklines or simpler visualizations
+
+## Next Steps
+
+- Learn about [Performance](/examples/performance) optimization
+- Explore [Virtual Mode](/examples/virtual-mode) for large datasets
+- See TeeChart documentation for chart customization
+
+## Related Examples
+
+- [Array Binding](/examples/array-binding)
+- [Performance](/examples/performance)
+- [Virtual Mode](/examples/virtual-mode)

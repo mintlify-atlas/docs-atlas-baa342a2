@@ -1,0 +1,214 @@
+---
+title: "Database Grid Example"
+description: "Connect TeeGrid to databases using TDataSource and TDataSet"
+---
+
+## Overview
+
+TeeGrid provides seamless integration with Delphi's database components. You can connect it directly to a `TDataSource` or `TDataSet` for live data binding with automatic updates.
+
+## Basic Database Connection
+
+### Using TDataSource
+
+```pascal
+uses
+  VCLTee.Control, VCLTee.Grid, Tee.GridData.DB, Data.DB;
+
+procedure TFormGridDataset.FormCreate(Sender: TObject);
+begin
+  // Simply assign a TDataSource to the grid
+  TeeGrid1.DataSource := DataSource1;
+end;
+```
+
+### Using TDataSet Directly
+
+```pascal
+// Connect directly to a dataset
+TeeGrid1.DataSource := ClientDataSet1;
+```
+
+## Complete Example with ClientDataSet
+
+From the VCL Database demo (`Unit_Dataset.pas`):
+
+```pascal
+unit Unit_Dataset;
+
+interface
+
+uses
+  Winapi.Windows, System.SysUtils, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, VCLTee.Control, VCLTee.Grid, Data.DB,
+  Datasnap.DBClient, Vcl.DBCtrls;
+
+type
+  TFormGridDataset = class(TForm)
+    ClientDataSet1: TClientDataSet;
+    DataSource1: TDataSource;
+    TeeGrid1: TTeeGrid;
+    DBNavigator1: TDBNavigator;
+    CheckBox1: TCheckBox;
+    procedure FormCreate(Sender: TObject);
+    procedure CheckBox1Click(Sender: TObject);
+  private
+    procedure SetGridSortable;
+  end;
+
+implementation
+
+uses
+  Tee.GridData.DB.Sortable;
+
+procedure TFormGridDataset.FormCreate(Sender: TObject);
+begin
+  // Connect grid to database
+  TeeGrid1.DataSource := ClientDataSet1;
+  
+  // Enable sorting by clicking column headers
+  SetGridSortable;
+  
+  // Enable drag/pan scrolling
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+end;
+
+procedure TFormGridDataset.CheckBox1Click(Sender: TObject);
+begin
+  // Open or close the dataset
+  ClientDataSet1.Active := CheckBox1.Checked;
+end;
+
+procedure TFormGridDataset.SetGridSortable;
+var
+  tmp: TDataSet;
+begin
+  if TeeGrid1.DataSource is TDataSource then
+    tmp := (TeeGrid1.DataSource as TDataSource).DataSet
+  else if TeeGrid1.DataSource is TDataSet then
+    tmp := (TeeGrid1.DataSource as TDataSet)
+  else
+    Exit;
+
+  // Enable sorting for ClientDataSet
+  if tmp is TClientDataSet then
+    TSortableClientDataset.CreateSortable(TeeGrid1.Grid, tmp as TClientDataSet)
+  // Enable sorting for FireDAC datasets
+  else if tmp is TFDDataSet then
+    TSortableFireDACDataset.CreateSortable(TeeGrid1.Grid, tmp as TFDDataSet);
+end;
+
+end.
+```
+
+## Enabling Column Sorting
+
+TeeGrid supports automatic sorting when clicking column headers:
+
+### For ClientDataSet
+
+```pascal
+uses
+  Tee.GridData.DB.Sortable;
+
+// Enable sorting for TClientDataSet
+TSortableClientDataset.CreateSortable(TeeGrid1.Grid, ClientDataSet1);
+```
+
+### For FireDAC Datasets
+
+```pascal
+uses
+  Tee.GridData.DB.Sortable, FireDAC.Comp.Client;
+
+// Enable sorting for FireDAC TFDDataSet
+TSortableFireDACDataset.CreateSortable(TeeGrid1.Grid, FDMemTable1);
+```
+
+### Cleanup
+
+Remove temporary sorting indexes when destroying the form:
+
+```pascal
+procedure TFormGridDataset.FormDestroy(Sender: TObject);
+begin
+  // Clean up temporary indexes
+  TSortableClientDataset.CleanUp(ClientDataSet1);
+  TSortableFireDACDataset.CleanUp(FDMemTable1);
+end;
+```
+
+## Custom Column Rendering
+
+### Password Column Example
+
+```pascal
+// Use a custom render for password fields
+ChangeRender(TeeGrid1.Columns['Password'], TPasswordRender);
+
+// Alternative: Use OnPaint event
+TeeGrid1.Columns['Password'].OnPaint := PaintPassword;
+
+procedure PaintPassword(const Sender: TColumn; var AData: TRenderData;
+  var DefaultPaint: Boolean);
+begin
+  AData.Data := '######';
+  DefaultPaint := True;
+end;
+```
+
+## Automatic Row Heights
+
+```pascal
+// Enable automatic row height for multi-line text
+TeeGrid1.Rows.Height.Automatic := True;
+
+// Or set a fixed height for all rows
+TeeGrid1.Rows.Height.Value := 100;
+```
+
+## Performance with Large Datasets
+
+TeeGrid is optimized for large datasets. From the demo with 10,000 records:
+
+```pascal
+procedure AddSampleRecords;
+var
+  t: Integer;
+begin
+  for t := 1 to 10000 do
+    ClientDataSet3.AppendRecord(['Name', 3.45, 'Address', t, 'Password']);
+end;
+```
+
+The grid efficiently handles:
+- Virtual rendering (only visible rows are drawn)
+- Smooth scrolling even with thousands of records
+- Instant column sorting
+
+## Key Features
+
+- **Direct Database Binding**: Connect to TDataSource or TDataSet
+- **Automatic Updates**: Changes in the dataset reflect immediately in the grid
+- **Column Sorting**: Click headers to sort (with ClientDataSet or FireDAC)
+- **Custom Rendering**: Override default rendering for specific columns
+- **Navigation**: Works with DBNavigator and standard dataset navigation
+- **High Performance**: Virtual rendering for datasets of any size
+
+## Supported Dataset Types
+
+- `TClientDataSet` (DataSnap)
+- `TFDMemTable`, `TFDQuery`, and other `TFDDataSet` descendants (FireDAC)
+- Any `TDataSet` descendant (with basic functionality)
+
+## Next Steps
+
+- Learn about [Master-Detail](/examples/master-detail) relationships
+- Explore [Custom Editors](/examples/custom-editors) for data entry
+- See [Performance](/examples/performance) tips for large datasets
+
+## Related Examples
+
+- [Dataset Binding](/examples/dataset-binding)
+- [Master-Detail](/examples/master-detail)
+- [Performance](/examples/performance)

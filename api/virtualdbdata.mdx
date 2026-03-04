@@ -1,0 +1,422 @@
+---
+title: TVirtualDBData
+description: Virtual data adapter for linking TDataSet or TDataSource to TeeGrid
+---
+
+## Overview
+
+`TVirtualDBData` is a virtual data class that links TDataSet or TDataSource fields to a TeeGrid. It provides automatic integration with database components, allowing seamless display and editing of database records.
+
+<Note>
+Setting the TeeGrid `DataSource` property to a TDataSet or TDataSource component will automatically create a `TVirtualDBData` object.
+</Note>
+
+## Usage
+
+### Automatic Creation
+
+The simplest way to use `TVirtualDBData` is to assign a dataset or data source directly to the grid:
+
+```pascal
+// Using TDataSet
+TeeGrid1.DataSource := FDMemTable1;
+
+// Using TDataSource
+TeeGrid1.DataSource := DataSource2;
+```
+
+### Manual Creation
+
+You can also manually create and configure a `TVirtualDBData` instance:
+
+```pascal
+uses Tee.GridData.DB;
+
+// From TDataSource
+TeeGrid1.Data := TVirtualDBData.From(DataSource1);
+
+// From TDataSet
+TeeGrid1.Data := TVirtualDBData.From(MyDataSet1);
+```
+
+## Types
+
+### TVirtualFetchMode
+
+Controls how records are fetched from the dataset:
+
+- `Automatic` - Automatically determines fetch strategy based on dataset characteristics
+- `All` - Fetches all records at once
+- `Partial` - Fetches records on-demand (virtual mode)
+
+## Properties
+
+<ResponseField name="DataSet" type="TDataSet" readonly>
+Provides read-only access to the underlying TDataSet being displayed in the grid.
+
+```pascal
+var
+  RecordCount: Integer;
+begin
+  if Assigned(TVirtualDBData(TeeGrid1.Data).DataSet) then
+    RecordCount := TVirtualDBData(TeeGrid1.Data).DataSet.RecordCount;
+end;
+```
+</ResponseField>
+
+<ResponseField name="FetchMode" type="TVirtualFetchMode" default="Automatic">
+Controls the record fetching strategy. Set to `All` for smaller datasets or `Partial` for large datasets to improve performance.
+
+```pascal
+var
+  DBData: TVirtualDBData;
+begin
+  DBData := TVirtualDBData.From(FDQuery1);
+  DBData.FetchMode := TVirtualFetchMode.Partial; // Virtual mode for large datasets
+  TeeGrid1.Data := DBData;
+end;
+```
+</ResponseField>
+
+<ResponseField name="OwnsData" type="Boolean">
+Determines whether the TVirtualDBData instance owns and will free the associated dataset. Set to `True` if you want the data adapter to manage the dataset's lifetime.
+
+```pascal
+var
+  DBData: TVirtualDBData;
+begin
+  DBData := TVirtualDBData.From(MyDataSet);
+  DBData.OwnsData := True; // TVirtualDBData will free MyDataSet
+  TeeGrid1.Data := DBData;
+end;
+```
+</ResponseField>
+
+## Methods
+
+### Class Methods
+
+<ResponseField name="From" type="class function">
+Creates a TVirtualData instance from a TComponent (TDataSet or TDataSource).
+
+**Signature:**
+```pascal
+class function From(const ASource: TComponent): TVirtualData; override;
+```
+
+**Parameters:**
+- `ASource` - A TDataSet or TDataSource component
+
+**Returns:**
+A new TVirtualDBData instance configured for the given data source.
+
+**Example:**
+```pascal
+uses Tee.GridData.DB;
+
+var
+  GridData: TVirtualData;
+begin
+  GridData := TVirtualDBData.From(FDQuery1);
+  TeeGrid1.Data := GridData;
+end;
+```
+</ResponseField>
+
+<ResponseField name="LinkTo" type="class procedure">
+Links a TeeGrid column to a specific TField from the dataset.
+
+**Signature:**
+```pascal
+class procedure LinkTo(const AColumn: TColumn; const AField: TField); static;
+```
+
+**Parameters:**
+- `AColumn` - The TColumn to link
+- `AField` - The TField to link to the column
+
+**Example:**
+```pascal
+var
+  Col: TColumn;
+begin
+  Col := TeeGrid1.Columns.Add;
+  TVirtualDBData.LinkTo(Col, MyDataSet.FieldByName('CustomerName'));
+end;
+```
+</ResponseField>
+
+### Instance Methods
+
+<ResponseField name="AddColumns" type="procedure">
+Automatically adds columns to the grid based on the dataset fields.
+
+**Signature:**
+```pascal
+procedure AddColumns(const AColumns: TColumns); override;
+```
+
+**Parameters:**
+- `AColumns` - The columns collection to populate
+
+**Example:**
+```pascal
+var
+  DBData: TVirtualDBData;
+begin
+  DBData := TVirtualDBData.From(FDQuery1);
+  TeeGrid1.Data := DBData;
+  DBData.AddColumns(TeeGrid1.Columns); // Manually add columns
+end;
+```
+</ResponseField>
+
+<ResponseField name="AsFloat" type="function">
+Retrieves the floating-point value of a cell.
+
+**Signature:**
+```pascal
+function AsFloat(const AColumn: TColumn; const ARow: Integer): TFloat; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to read from
+- `ARow` - The row index
+
+**Returns:**
+The cell value as a floating-point number.
+</ResponseField>
+
+<ResponseField name="AsString" type="function">
+Retrieves the string representation of a cell value.
+
+**Signature:**
+```pascal
+function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to read from
+- `ARow` - The row index
+
+**Returns:**
+The cell value as a string.
+</ResponseField>
+
+<ResponseField name="Count" type="function">
+Returns the total number of rows (records) in the dataset.
+
+**Signature:**
+```pascal
+function Count: Integer; override;
+```
+
+**Returns:**
+The number of records in the dataset.
+</ResponseField>
+
+<ResponseField name="DataType" type="function">
+Returns the RTTI type information for a column's data type.
+
+**Signature:**
+```pascal
+function DataType(const AColumn: TColumn): PTypeInfo; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to query
+
+**Returns:**
+Pointer to the type information for the column's field type.
+</ResponseField>
+
+<ResponseField name="Load" type="procedure">
+Loads or reloads the grid columns from the dataset.
+
+**Signature:**
+```pascal
+procedure Load(const AColumns: TColumns); override;
+```
+
+**Parameters:**
+- `AColumns` - The columns collection to load into
+</ResponseField>
+
+<ResponseField name="ReadOnly" type="function">
+Determines if a column is read-only based on the field properties.
+
+**Signature:**
+```pascal
+function ReadOnly(const AColumn: TColumn): Boolean; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to check
+
+**Returns:**
+`True` if the column's field is read-only, `False` otherwise.
+</ResponseField>
+
+<ResponseField name="SetValue" type="procedure">
+Sets a cell value, updating the underlying dataset field.
+
+**Signature:**
+```pascal
+procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); override;
+```
+
+**Parameters:**
+- `AColumn` - The column to update
+- `ARow` - The row index
+- `AText` - The new value as a string
+
+**Example:**
+```pascal
+var
+  DBData: TVirtualDBData;
+begin
+  DBData := TVirtualDBData(TeeGrid1.Data);
+  DBData.SetValue(TeeGrid1.Columns[0], 5, 'New Value');
+end;
+```
+</ResponseField>
+
+<ResponseField name="AutoWidth" type="function">
+Calculates the optimal column width based on the data and painter.
+
+**Signature:**
+```pascal
+function AutoWidth(const APainter: TPainter; const AColumn: TColumn): Single; override;
+```
+
+**Parameters:**
+- `APainter` - The painter used for measuring text
+- `AColumn` - The column to measure
+
+**Returns:**
+The calculated optimal width in pixels.
+</ResponseField>
+
+<ResponseField name="EditMode" type="procedure">
+Called when the grid enters or exits edit mode.
+
+**Signature:**
+```pascal
+procedure EditMode(const AMode: TEditMode); override;
+```
+
+**Parameters:**
+- `AMode` - The edit mode state
+</ResponseField>
+
+<ResponseField name="Refresh" type="procedure">
+Refreshes the grid data from the dataset.
+
+**Signature:**
+```pascal
+procedure Refresh; override;
+```
+
+**Example:**
+```pascal
+var
+  DBData: TVirtualDBData;
+begin
+  DBData := TVirtualDBData(TeeGrid1.Data);
+  DBData.Refresh; // Reload data from dataset
+end;
+```
+</ResponseField>
+
+## Complete Examples
+
+### Basic Database Grid
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.DB, FireDAC.Comp.Client;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Automatic - just assign the dataset
+  TeeGrid1.DataSource := FDQuery1;
+end;
+```
+
+### Advanced Configuration
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.DB, FireDAC.Comp.Client;
+
+procedure TForm1.SetupGrid;
+var
+  DBData: TVirtualDBData;
+begin
+  // Create data adapter
+  DBData := TVirtualDBData.From(FDQuery1);
+  
+  // Configure for large dataset
+  DBData.FetchMode := TVirtualFetchMode.Partial;
+  
+  // Assign to grid
+  TeeGrid1.Data := DBData;
+  
+  // Customize appearance
+  TeeGrid1.Columns[0].Width := 200;
+  TeeGrid1.Columns[1].Visible := False;
+end;
+```
+
+### Master-Detail Grids
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.DB;
+
+procedure TForm1.SetupMasterDetail;
+begin
+  // Master grid
+  MasterGrid.DataSource := MasterDataSet;
+  
+  // Detail grid
+  DetailGrid.DataSource := DetailDataSet;
+  
+  // Link via dataset relationship
+  DetailDataSet.MasterSource := MasterDataSource;
+  DetailDataSet.MasterFields := 'CustomerID';
+end;
+```
+
+### Custom Field Linking
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.DB, Tee.Grid.Columns;
+
+procedure TForm1.CreateCustomColumns;
+var
+  DBData: TVirtualDBData;
+  Col: TColumn;
+begin
+  DBData := TVirtualDBData.From(MyDataSet);
+  TeeGrid1.Data := DBData;
+  
+  // Manually create and link columns
+  TeeGrid1.Columns.Clear;
+  
+  Col := TeeGrid1.Columns.Add;
+  Col.Text := 'Customer';
+  TVirtualDBData.LinkTo(Col, MyDataSet.FieldByName('CustomerName'));
+  
+  Col := TeeGrid1.Columns.Add;
+  Col.Text := 'Total';
+  TVirtualDBData.LinkTo(Col, MyDataSet.FieldByName('OrderTotal'));
+end;
+```
+
+## See Also
+
+- [TVirtualData](/api/virtualdata) - Base class for all data adapters
+- [TDataSet Binding](/data/datasets) - Guide to working with datasets
+- [Database Grid Examples](/examples/database-grid) - Complete examples

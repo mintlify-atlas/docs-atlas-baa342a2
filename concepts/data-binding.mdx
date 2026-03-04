@@ -1,0 +1,461 @@
+---
+title: "Data Binding"
+description: "Learn how TeeGrid connects to your data through the TVirtualData abstraction layer"
+---
+
+## Overview
+
+TeeGrid uses an abstraction layer called `TVirtualData` to connect to various data sources. This design allows the grid to work with databases, arrays, lists, and custom data sources through a unified interface.
+
+## The TVirtualData Abstract Class
+
+`TVirtualData` is defined in `Tee.GridData.pas` and provides the contract that all data adapters must implement:
+
+```pascal
+TVirtualData = class abstract
+  procedure AddColumns(const AColumns: TColumns); virtual; abstract;
+  function AsString(const AColumn: TColumn; const ARow: Integer): String; virtual; abstract;
+  function AutoWidth(const APainter: TPainter; const AColumn: TColumn): Single; virtual; abstract;
+  function Count: Integer; virtual; abstract;
+  procedure Load(const AColumns: TColumns); virtual; abstract;
+  procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); virtual; abstract;
+end;
+```
+
+### Key Methods
+
+<ParamField path="AddColumns" type="procedure">
+  Populates the columns collection with columns representing the data structure (fields, properties, etc.).
+</ParamField>
+
+<ParamField path="AsString" type="function">
+  Retrieves the display value for a specific cell. This is the most frequently called method during rendering.
+</ParamField>
+
+<ParamField path="Count" type="function">
+  Returns the total number of rows in the data source. Return -1 if the count is unknown (streaming data).
+</ParamField>
+
+<ParamField path="Load" type="procedure">
+  Associates existing columns with data source fields. Used when columns are defined manually rather than auto-generated.
+</ParamField>
+
+<ParamField path="SetValue" type="procedure">
+  Updates a cell value when the user edits it. Implement validation and data conversion here.
+</ParamField>
+
+## Built-in Data Adapters
+
+TeeGrid provides several ready-to-use data adapters:
+
+### Database Binding (TVirtualDBData)
+
+Connects to TDataSet or TDataSource components:
+
+<CodeGroup>
+```pascal Automatic via DataSource Property
+uses Tee.GridData.DB;
+
+// Simplest approach - just set DataSource
+TeeGrid1.DataSource := DataSource1;
+// or
+TeeGrid1.DataSource := FDMemTable1;
+```
+
+```pascal Manual Creation
+uses Tee.GridData.DB;
+
+var
+  DBData: TVirtualDBData;
+begin
+  DBData := TVirtualDBData.From(DataSource1);
+  TeeGrid1.Data := DBData;
+end;
+```
+</CodeGroup>
+
+**Features:**
+- Automatic column creation from dataset fields
+- Native data type support (string, integer, float, date, etc.)
+- Edit support with automatic dataset posting
+- Master-detail relationships
+- Filtering and sorting integration
+
+**Connection Process:**
+
+```mermaid
+graph LR
+    A[TDataSet] --> B[TVirtualDataLink]
+    B --> C[TVirtualDBData]
+    C --> D[TeeGrid]
+    B -.DataSet Events.-> C
+```
+
+### Array and List Binding (TVirtualData&lt;T&gt;)
+
+Connects to TArray&lt;T&gt; and TList&lt;T&gt; using RTTI:
+
+<CodeGroup>
+```pascal Array of Records
+type
+  TPerson = record
+    Name: string;
+    Age: Integer;
+    Email: string;
+  end;
+
+var
+  People: TArray<TPerson>;
+begin
+  SetLength(People, 100);
+  // ... populate array ...
+  
+  TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(People);
+end;
+```
+
+```pascal TList of Classes
+type
+  TCustomer = class
+  private
+    FName: string;
+    FBalance: Double;
+  public
+    property Name: string read FName write FName;
+    property Balance: Double read FBalance write FBalance;
+  end;
+
+var
+  Customers: TList<TCustomer>;
+begin
+  Customers := TList<TCustomer>.Create;
+  // ... populate list ...
+  
+  TeeGrid1.Data := TVirtualListData<TCustomer>.Create(Customers);
+end;
+```
+
+```pascal TObjectList
+var
+  Products: TObjectList<TProduct>;
+begin
+  Products := TObjectList<TProduct>.Create;
+  // ... populate list ...
+  
+  TeeGrid1.Data := TVirtualObjectListData<TProduct>.Create(Products);
+end;
+```
+</CodeGroup>
+
+**Features:**
+- Automatic column creation from public fields and properties
+- RTTI-based value retrieval and setting
+- Support for nested objects
+- Configurable visibility levels (mvPublic, mvPublished)
+- Edit support with automatic value conversion
+
+### String Grid Binding (TVirtualStringData)
+
+Emulates a string grid with Cells[Col,Row] indexing:
+
+```pascal
+uses Tee.GridData.Strings;
+
+var
+  StringData: TVirtualStringData;
+begin
+  StringData := TVirtualStringData.Create;
+  
+  // Define columns
+  StringData.Columns.Add('Name');
+  StringData.Columns.Add('Email');
+  StringData.Columns.Add('Phone');
+  
+  // Add rows
+  StringData.RowCount := 100;
+  
+  // Set cell values
+  StringData.Cells[0, 0] := 'John Smith';
+  StringData.Cells[1, 0] := 'john@example.com';
+  StringData.Cells[2, 0] := '555-0100';
+  
+  TeeGrid1.Data := StringData;
+end;
+```
+
+## Data Binding Process
+
+When you assign data to a grid, TeeGrid follows this sequence:
+
+<Steps>
+  <Step title="Data Assignment">
+    You set `TeeGrid.DataSource` or `TeeGrid.Data`.
+  </Step>
+  
+  <Step title="Adapter Creation">
+    If using DataSource, TeeGrid automatically creates the appropriate TVirtualData implementation based on the component type.
+  </Step>
+  
+  <Step title="Column Generation">
+    TeeGrid calls `TVirtualData.AddColumns()` to populate the Columns collection automatically.
+  </Step>
+  
+  <Step title="Column Association">
+    Each TColumn gets a TagObject linking it to the data source field or property.
+  </Step>
+  
+  <Step title="Initial Render">
+    The grid renders using `TVirtualData.AsString()` to retrieve cell values.
+  </Step>
+</Steps>
+
+## Automatic Column Generation
+
+When `AddColumns` is called, the data adapter creates columns based on the data structure:
+
+<Tabs>
+  <Tab title="Database Fields">
+    ```pascal
+    // TVirtualDBData creates one column per field
+    for Field in DataSet.Fields do
+      Column := Columns.Add;
+      Column.Header.Text := Field.FieldName;
+      Column.TagObject := Field; // Links column to field
+    ```
+  </Tab>
+  
+  <Tab title="RTTI Members">
+    ```pascal
+    // TVirtualDataRtti creates columns from public fields/properties
+    for Member in RttiType.GetFields do
+      if IsVisible(Member) then
+        Column := Columns.Add;
+        Column.Header.Text := Member.Name;
+        Column.TagObject := Member; // Links column to member
+    ```
+  </Tab>
+  
+  <Tab title="String Columns">
+    ```pascal
+    // TVirtualStringData uses predefined columns
+    for I := 0 to ColumnCount - 1 do
+      Column := Columns.Add;
+      Column.Header.Text := 'Column ' + IntToStr(I);
+    ```
+  </Tab>
+</Tabs>
+
+## Manual Column Configuration
+
+You can define columns manually and then bind them to data:
+
+```pascal
+// Define columns first
+TeeGrid1.Columns.Clear;
+TeeGrid1.Columns.Add('Customer Name');
+TeeGrid1.Columns.Add('Amount');
+TeeGrid1.Columns.Add('Date');
+
+// Then assign data
+TeeGrid1.DataSource := DataSource1;
+
+// The Load method associates columns with fields
+TeeGrid1.Data.Load(TeeGrid1.Columns);
+```
+
+## Data Events
+
+TVirtualData provides events to notify the grid of changes:
+
+<ParamField path="OnRefresh" type="TNotifyEvent">
+  Triggered when the data structure changes (columns added/removed, data reloaded).
+  
+  ```pascal
+  procedure DataRefresh(Sender: TObject);
+  begin
+    // Rebuild grid structure
+  end;
+  ```
+</ParamField>
+
+<ParamField path="OnRepaint" type="TNotifyEvent">
+  Triggered when data values change but structure remains the same.
+  
+  ```pascal
+  procedure DataRepaint(Sender: TObject);
+  begin
+    // Redraw grid
+  end;
+  ```
+</ParamField>
+
+<ParamField path="OnChangeRow" type="TRowChangedEvent">
+  Triggered when the current row changes.
+  
+  ```pascal
+  procedure ChangeRow(const Sender: TObject; const ARow: Integer);
+  begin
+    // Update related UI
+  end;
+  ```
+</ParamField>
+
+<ParamField path="OnEditing" type="TDataEditingEvent">
+  Triggered when edit mode starts or ends.
+  
+  ```pascal
+  procedure EditingChanged(const Sender: TObject; const IsEditing: Boolean);
+  begin
+    if IsEditing then
+      // Edit started
+    else
+      // Edit ended
+  end;
+  ```
+</ParamField>
+
+## Creating Custom Data Adapters
+
+You can create custom TVirtualData implementations for specialized data sources:
+
+```pascal
+type
+  TMyCustomData = class(TVirtualData)
+  private
+    FMyDataSource: TMyDataSource;
+  protected
+    function Empty: Boolean; override;
+    function KnownCount: Boolean; override;
+  public
+    procedure AddColumns(const AColumns: TColumns); override;
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+    function AutoWidth(const APainter: TPainter; const AColumn: TColumn): Single; override;
+    function Count: Integer; override;
+    procedure Load(const AColumns: TColumns); override;
+    procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); override;
+  end;
+
+implementation
+
+function TMyCustomData.Count: Integer;
+begin
+  Result := FMyDataSource.RecordCount;
+end;
+
+function TMyCustomData.AsString(const AColumn: TColumn; const ARow: Integer): String;
+begin
+  // Retrieve value from your data source
+  Result := FMyDataSource.GetValue(AColumn, ARow);
+end;
+
+procedure TMyCustomData.AddColumns(const AColumns: TColumns);
+var
+  Column: TColumn;
+begin
+  // Create columns based on your data structure
+  for FieldName in FMyDataSource.FieldNames do
+  begin
+    Column := AColumns.Add;
+    Column.Header.Text := FieldName;
+    Column.TagObject := FMyDataSource.FieldByName(FieldName);
+  end;
+end;
+```
+
+<Tip>
+Inherit from `TVirtualDataRtti` instead of `TVirtualData` if your data source contains objects or records - it provides RTTI-based helpers.
+</Tip>
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Lazy Loading" icon="hourglass">
+    Only visible rows are rendered. The `AsString` method is called only for cells currently displayed on screen.
+  </Accordion>
+  
+  <Accordion title="Value Caching" icon="database">
+    For expensive calculations, cache values in your TVirtualData implementation rather than recalculating on each `AsString` call.
+  </Accordion>
+  
+  <Accordion title="Unknown Count" icon="infinity">
+    Return -1 from `Count` for streaming data. TeeGrid will fetch rows on-demand without requiring the total count upfront.
+  </Accordion>
+  
+  <Accordion title="AutoWidth Optimization" icon="ruler">
+    Implement `AutoWidth` efficiently - it's called once per column but may be expensive if it scans all rows.
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+### Read-Only Data
+
+```pascal
+function TMyCustomData.ReadOnly(const AColumn: TColumn): Boolean;
+begin
+  Result := True; // All columns read-only
+end;
+```
+
+### Calculated Columns
+
+```pascal
+function TMyCustomData.AsString(const AColumn: TColumn; const ARow: Integer): String;
+begin
+  if AColumn.Header.Text = 'Total' then
+    Result := FloatToStr(GetUnitPrice(ARow) * GetQuantity(ARow))
+  else
+    Result := inherited AsString(AColumn, ARow);
+end;
+```
+
+### Data Validation
+
+```pascal
+procedure TMyCustomData.SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String);
+var
+  Value: Integer;
+begin
+  if AColumn.Header.Text = 'Age' then
+  begin
+    if TryStrToInt(AText, Value) and (Value >= 0) and (Value <= 150) then
+      FData[ARow].Age := Value
+    else
+      raise Exception.Create('Invalid age value');
+  end
+  else
+    inherited SetValue(AColumn, ARow, AText);
+end;
+```
+
+## Registration System
+
+TeeGrid includes a registration system for automatic adapter selection:
+
+```pascal
+initialization
+  TVirtualDataClasses.Register(TVirtualDBData);
+  TVirtualDataClasses.Register(TMyCustomData);
+```
+
+When you set `DataSource`, TeeGrid calls `TVirtualDataClasses.Guess()` to find a compatible adapter.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Virtual Data" icon="layer-group" href="/concepts/virtual-data">
+    Deep dive into TVirtualData implementations
+  </Card>
+  
+  <Card title="Columns" icon="table-columns" href="/concepts/columns">
+    Learn about the column system and hierarchy
+  </Card>
+  
+  <Card title="Database Grids" icon="database" href="/data/datasets">
+    Working with TDataSet and database components
+  </Card>
+  
+  <Card title="Arrays & Lists" icon="list" href="/data/arrays-and-lists">
+    Binding to in-memory data structures
+  </Card>
+</CardGroup>

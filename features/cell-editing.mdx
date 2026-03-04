@@ -1,0 +1,209 @@
+---
+title: Cell Editing
+description: Edit cell values with customizable editors and events
+---
+
+TeeGrid provides powerful cell editing capabilities with support for custom editor controls, automatic text selection, and flexible event handling.
+
+## Basic Editing Setup
+
+Enable cell editing through the `Editing` property:
+
+```delphi
+TeeGrid1.Editing.AutoEdit := True;          // Start editing on key press
+TeeGrid1.Editing.DoubleClick := True;       // Start editing on double-click
+TeeGrid1.Editing.AlwaysVisible := False;    // Hide editor when moving cells
+```
+
+## Editing Properties
+
+### AutoEdit
+
+When `True`, pressing any key automatically shows the cell editor. When `False`, only F2 or double-clicking starts editing.
+
+```delphi
+TeeGrid1.Editing.AutoEdit := True;
+```
+
+### AlwaysVisible
+
+Keeps the editor visible when moving from one cell to another:
+
+```delphi
+TeeGrid1.Editing.AlwaysVisible := True;
+```
+
+### EnterKey Behavior
+
+Control what happens when pressing Enter while editing:
+
+```delphi
+// TEditingEnter options:
+// - NextCell: Move to next cell
+// - NextRow: Move to next row
+// - SameCell: Stay in same cell
+
+TeeGrid1.Editing.EnterKey := TEditingEnter.NextCell;
+```
+
+### Text Selection
+
+Control whether text is selected when editing begins:
+
+```delphi
+TeeGrid1.Editing.Text.Selected := True;  // Select all text when editing starts
+```
+
+## Custom Cell Editors
+
+Assign different editor controls to each column using `EditorClass`:
+
+```delphi
+// TrackBar for numeric values
+TeeGrid1.Columns['Height'].EditorClass := TTrackBar;
+
+// DateTimePicker for dates
+TeeGrid1.Columns['BirthDate'].EditorClass := TDateTimePicker;
+
+// ComboBox for selections
+TeeGrid1.Columns['Vehicle'].EditorClass := TComboBox;
+TeeGrid1.Columns['EyeColor'].EditorClass := TComboBox;
+
+// CheckBox for boolean values
+TeeGrid1.Columns['Holidays'].EditorClass := TCheckBox;
+
+// SpinEdit for integers
+TeeGrid1.Columns['Happiness'].EditorClass := TSpinEdit;
+```
+
+## OnCellEditing Event
+
+Called when a cell editor is displayed. Use this to customize the editor:
+
+```delphi
+procedure TForm1.TeeGrid1CellEditing(const Sender: TObject;
+  const AEditor: TControl; const AColumn: TColumn; const ARow: Integer);
+var
+  tmpValue: String;
+begin
+  // Setup ComboBox items
+  if AEditor is TComboBox then
+  begin
+    tmpValue := TeeGrid1.Data.AsString(AColumn, ARow);
+    TComboBox(AEditor).Style := csDropDown;
+
+    if AColumn = TeeGrid1.Columns['Vehicle'] then
+      FillCombo(TComboBox(AEditor),
+                ['None','Bicycle','MotorBike','Car','Caravan','Truck','Boat','Plane'],
+                tmpValue)
+    else if AColumn = TeeGrid1.Columns['EyeColor'] then
+      FillCombo(TComboBox(AEditor),
+                ['Black','Brown','Green','Blue'],
+                tmpValue);
+  end;
+
+  // Setup TrackBar range
+  if AColumn = TeeGrid1.Columns['Height'] then
+    if AEditor is TTrackBar then
+    begin
+      TTrackBar(AEditor).Min := 400;
+      TTrackBar(AEditor).Max := 700;
+      TTrackBar(AEditor).Frequency := 50;
+      TTrackBar(AEditor).Position := Round(100 * TeeGrid1.Data.AsFloat(AColumn, ARow));
+    end;
+end;
+```
+
+## OnCellEdited Event
+
+Called when editing is finished. Retrieve the new value and update data:
+
+```delphi
+procedure TForm1.TeeGrid1CellEdited(const Sender: TObject;
+  const AEditor: TControl; const AColumn: TColumn; const ARow: Integer;
+  var ChangeData: Boolean; var NewData: String);
+var
+  tmp: Single;
+  tmpValue: String;
+begin
+  // Handle TrackBar value
+  if AColumn = TeeGrid1.Columns['Height'] then
+  begin
+    if AEditor is TTrackBar then
+    begin
+      tmp := 0.01 * TTrackBar(AEditor).Position;
+      TeeGrid1.Data.SetValue(AColumn, ARow, FloatToStr(tmp));
+      ChangeData := False;  // We handled the data change
+    end;
+  end
+  // Handle ComboBox value
+  else if AEditor is TComboBox then
+  begin
+    tmpValue := TComboBox(AEditor).Text;
+    
+    if tmpValue = '' then
+      tmpValue := 'none';
+      
+    TeeGrid1.Data.SetValue(AColumn, ARow, tmpValue);
+    ChangeData := False;  // We handled the data change
+  end;
+end;
+```
+
+## Read-Only Columns
+
+Prevent editing specific columns:
+
+```delphi
+TeeGrid1.Columns['ID'].ReadOnly := True;
+```
+
+Or make the entire grid read-only:
+
+```delphi
+TeeGrid1.ReadOnly := True;
+```
+
+## Programmatic Editing
+
+Start or stop editing programmatically:
+
+```delphi
+// Start editing current cell
+TeeGrid1.StartEditor;
+
+// Stop editing and save changes
+TeeGrid1.StopEditor;
+
+// Cancel editing without saving
+TeeGrid1.CancelEditor;
+```
+
+## Cell Format During Editing
+
+Customize individual cells with formatting:
+
+```delphi
+var
+  cell: TCell;
+  fontstyles: TFontStyles;
+begin
+  fontstyles := [TFontStyle.fsBold, TFontStyle.fsStrikeOut];
+  
+  cell := TeeGrid1.CellFormat.AddCell(1, TeeGrid1.Columns[1].Index);
+  cell.Format.Font.Style := fontstyles;
+  cell.Format.Brush.Color := clYellow;
+  cell.Format.Font.Color := TColors.Red;
+  cell.Format.Brush.Show;
+  
+  TeeGrid1.Invalidate;
+end;
+```
+
+## Best Practices
+
+- Use `OnCellEditing` to initialize editor controls (fill ComboBox items, set TrackBar ranges, etc.)
+- Use `OnCellEdited` to retrieve editor values and update your data
+- Set `ChangeData := False` when manually updating data to prevent duplicate updates
+- Use column-specific `ReadOnly` for fields that shouldn't be edited (like IDs)
+- Consider `AlwaysVisible := True` for spreadsheet-like data entry workflows

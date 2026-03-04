@@ -1,0 +1,613 @@
+---
+title: TPainter
+description: Abstract painter class for cross-platform rendering in TeeGrid
+---
+
+## Overview
+
+`TPainter` is an abstract base class that provides platform-agnostic methods for drawing shapes, text, and graphics in TeeGrid. Framework-specific implementations (VCL and FireMonkey) inherit from this class to provide actual rendering functionality.
+
+**Unit**: `Tee.Painter.pas`
+
+## Architecture
+
+`TPainter` provides an abstraction layer that allows TeeGrid to work identically across different frameworks:
+
+- **VCL**: `VCLTee.Painter` unit implements `TPainter` using GDI/GDI+
+- **FireMonkey**: `FMXTee.Painter` unit implements `TPainter` using FMX canvas
+- **Lazarus/LCL**: Compatible with VCL painter implementation
+
+This design allows the same rendering code to work on Windows, macOS, Linux, iOS, and Android.
+
+## Type Definitions
+
+### THorizontalAlign
+
+```pascal
+type
+  THorizontalAlign = (Left, Center, Right);
+```
+
+Horizontal text alignment options.
+
+### TVerticalAlign
+
+```pascal
+type
+  TVerticalAlign = (Top, Center, Bottom);
+```
+
+Vertical text alignment options.
+
+### TTrimmingMode
+
+```pascal
+type
+  TTrimmingMode = (None, Character, Word);
+```
+
+Text trimming modes:
+- `None`: No trimming
+- `Character`: Trim at character boundary
+- `Word`: Trim at word boundary
+
+### TPointsF
+
+```pascal
+type
+  TPointsF = Array of TPointF;
+```
+
+Array of floating-point coordinates for polylines and polygons.
+
+## Drawing Methods
+
+### Draw (Rectangle)
+
+```pascal
+procedure Draw(const R: TRectF); virtual; abstract;
+```
+
+Draws the outline of a rectangle using the current stroke.
+
+**Parameters**:
+- `R`: Rectangle bounds
+
+**Example**:
+```pascal
+Painter.SetStroke(MyStroke);
+Painter.Draw(RectF(10, 10, 100, 50));
+```
+
+### Draw (Polyline)
+
+```pascal
+procedure Draw(const P: TPointsF); virtual; abstract;
+```
+
+Draws a polyline (connected line segments).
+
+**Parameters**:
+- `P`: Array of points
+
+**Example**:
+```pascal
+var
+  Points: TPointsF;
+begin
+  SetLength(Points, 3);
+  Points[0] := PointF(10, 10);
+  Points[1] := PointF(50, 30);
+  Points[2] := PointF(90, 10);
+  
+  Painter.SetStroke(MyStroke);
+  Painter.Draw(Points);
+end;
+```
+
+### Draw (Picture)
+
+```pascal
+procedure Draw(const APicture: TPicture; const X, Y: Single); overload; virtual; abstract;
+procedure Draw(const APicture: TPicture; const R: TRectF); overload; virtual; abstract;
+```
+
+Draws a picture at specified position or within a rectangle.
+
+**Parameters**:
+- `APicture`: Picture to draw
+- `X`, `Y`: Top-left coordinates
+- `R`: Rectangle to draw within (stretches if picture has Stretch = True)
+
+**Example**:
+```pascal
+var
+  Picture: TPicture;
+begin
+  Picture := TPicture.Create(nil);
+  try
+    Picture.LoadFromFile('logo.png');
+    Picture.Stretch := True;
+    Painter.Draw(Picture, RectF(0, 0, 100, 100));
+  finally
+    Picture.Free;
+  end;
+end;
+```
+
+### DrawEllipse
+
+```pascal
+procedure DrawEllipse(const R: TRectF); virtual; abstract;
+```
+
+Draws the outline of an ellipse.
+
+**Parameters**:
+- `R`: Bounding rectangle
+
+**Example**:
+```pascal
+Painter.SetStroke(MyStroke);
+Painter.DrawEllipse(RectF(10, 10, 50, 50)); // Circle
+```
+
+## Filling Methods
+
+### Fill (Rectangle)
+
+```pascal
+procedure Fill(const R: TRectF); overload; virtual; abstract;
+procedure Fill(const R: TRectF; const AColor: TColor); overload; virtual; abstract;
+```
+
+Fills a rectangle with the current brush or specified color.
+
+**Parameters**:
+- `R`: Rectangle bounds
+- `AColor`: Fill color (optional)
+
+**Example**:
+```pascal
+// Using current brush
+Painter.SetBrush(MyBrush);
+Painter.Fill(RectF(0, 0, 100, 50));
+
+// Using direct color
+Painter.Fill(RectF(0, 0, 100, 50), clBlue);
+```
+
+### Fill (Polygon)
+
+```pascal
+procedure Fill(const P: TPointsF); virtual; abstract;
+```
+
+Fills a polygon using the current brush.
+
+**Parameters**:
+- `P`: Array of points (automatically closed)
+
+**Example**:
+```pascal
+var
+  Points: TPointsF;
+begin
+  SetLength(Points, 3);
+  Points[0] := PointF(50, 10);
+  Points[1] := PointF(90, 90);
+  Points[2] := PointF(10, 90);
+  
+  Painter.SetBrush(MyBrush);
+  Painter.Fill(Points); // Filled triangle
+end;
+```
+
+### FillEllipse
+
+```pascal
+procedure FillEllipse(const R: TRectF); virtual; abstract;
+```
+
+Fills an ellipse with the current brush.
+
+**Parameters**:
+- `R`: Bounding rectangle
+
+## Line Drawing Methods
+
+### Line
+
+```pascal
+procedure Line(const X0, Y0, X1, Y1: Single); virtual; abstract;
+```
+
+Draws a line from (X0, Y0) to (X1, Y1).
+
+**Example**:
+```pascal
+Painter.SetStroke(MyStroke);
+Painter.Line(10, 10, 100, 100);
+```
+
+### HorizontalLine
+
+```pascal
+procedure HorizontalLine(const Y, X0, X1: Single); virtual; abstract;
+```
+
+Draws a horizontal line (optimized).
+
+**Parameters**:
+- `Y`: Vertical position
+- `X0`: Start X coordinate
+- `X1`: End X coordinate
+
+### VerticalLine
+
+```pascal
+procedure VerticalLine(const X, Y0, Y1: Single); virtual; abstract;
+```
+
+Draws a vertical line (optimized).
+
+**Parameters**:
+- `X`: Horizontal position
+- `Y0`: Start Y coordinate
+- `Y1`: End Y coordinate
+
+**Example**:
+```pascal
+// Draw grid lines
+Painter.SetStroke(GridLineStroke);
+for i := 0 to 10 do
+begin
+  Painter.HorizontalLine(i * 20, 0, 200);
+  Painter.VerticalLine(i * 20, 0, 200);
+end;
+```
+
+### Lines
+
+```pascal
+procedure Lines(const P: TPointsF); virtual; abstract;
+```
+
+Draws multiple connected line segments.
+
+**Parameters**:
+- `P`: Array of points
+
+## Text Methods
+
+### TextOut
+
+```pascal
+procedure TextOut(const ARect: TRectF; const AText: String); virtual; abstract;
+```
+
+Draws text within a rectangle using current font and alignment.
+
+**Parameters**:
+- `ARect`: Rectangle bounds
+- `AText`: Text to draw
+
+**Example**:
+```pascal
+Painter.SetFont(MyFont);
+Painter.SetHorizontalAlign(THorizontalAlign.Center);
+Painter.SetVerticalAlign(TVerticalAlign.Center);
+Painter.TextOut(RectF(0, 0, 100, 30), 'Hello World');
+```
+
+### TextWidth
+
+```pascal
+function TextWidth(const AText: String): Single; virtual; abstract;
+```
+
+Calculates the width of text in pixels.
+
+**Parameters**:
+- `AText`: Text to measure
+
+**Returns**: Width in pixels
+
+**Example**:
+```pascal
+var
+  Width: Single;
+begin
+  Painter.SetFont(MyFont);
+  Width := Painter.TextWidth('Sample Text');
+  ShowMessage('Width: ' + FloatToStr(Width));
+end;
+```
+
+### TextHeight
+
+```pascal
+function TextHeight(const AText: String): Single; overload; virtual; abstract;
+function TextHeight(const AFont: TFont): Single; overload;
+```
+
+Calculates the height of text in pixels.
+
+**Parameters**:
+- `AText`: Text to measure
+- `AFont`: Font to use for measurement
+
+**Returns**: Height in pixels
+
+### CalcTextLines
+
+```pascal
+class function CalcTextLines(const AText: String): Integer; static;
+```
+
+Counts the number of lines in multi-line text.
+
+**Parameters**:
+- `AText`: Text with potential line breaks
+
+**Returns**: Number of lines
+
+## Style Setting Methods
+
+### SetBrush
+
+```pascal
+procedure SetBrush(const ABrush: TBrush); virtual; abstract;
+```
+
+Sets the current brush for filling operations.
+
+**Example**:
+```pascal
+var
+  Brush: TBrush;
+begin
+  Brush := TBrush.Create(nil);
+  try
+    Brush.Color := clYellow;
+    Painter.SetBrush(Brush);
+    Painter.Fill(RectF(0, 0, 100, 50));
+  finally
+    Brush.Free;
+  end;
+end;
+```
+
+### HideBrush
+
+```pascal
+procedure HideBrush; virtual; abstract;
+```
+
+Disables brush (for drawing outlines only).
+
+### SetStroke
+
+```pascal
+procedure SetStroke(const AStroke: TStroke); virtual; abstract;
+```
+
+Sets the current stroke (pen) for drawing operations.
+
+**Example**:
+```pascal
+var
+  Stroke: TStroke;
+begin
+  Stroke := TStroke.Create(nil);
+  try
+    Stroke.Color := clRed;
+    Stroke.Size := 2;
+    Stroke.Style := TStrokeStyle.Dash;
+    Painter.SetStroke(Stroke);
+    Painter.Draw(RectF(0, 0, 100, 50));
+  finally
+    Stroke.Free;
+  end;
+end;
+```
+
+### SetFont
+
+```pascal
+procedure SetFont(const AFont: TFont); virtual; abstract;
+```
+
+Sets the current font for text operations.
+
+### SetFontColor
+
+```pascal
+procedure SetFontColor(const AColor: TColor); virtual; abstract;
+```
+
+Sets the font color directly.
+
+### SetHorizontalAlign
+
+```pascal
+procedure SetHorizontalAlign(const Align: THorizontalAlign); virtual; abstract;
+```
+
+Sets horizontal text alignment.
+
+**Values**: `Left`, `Center`, `Right`
+
+### SetVerticalAlign
+
+```pascal
+procedure SetVerticalAlign(const Align: TVerticalAlign); virtual; abstract;
+```
+
+Sets vertical text alignment.
+
+**Values**: `Top`, `Center`, `Bottom`
+
+### SetTextTrimming
+
+```pascal
+procedure SetTextTrimming(const ATrimming: TTrimmingMode; const Ellipsi: Boolean); virtual; abstract;
+```
+
+Sets text trimming mode and ellipsis display.
+
+**Parameters**:
+- `ATrimming`: Trimming mode (None, Character, Word)
+- `Ellipsi`: Show "..." when trimmed
+
+## Format Painting Methods
+
+### Paint (Format + Rectangle)
+
+```pascal
+procedure Paint(const AFormat: TFormat; const R: TRectF); overload; virtual; abstract;
+```
+
+Paints a rectangle using a format (brush and stroke).
+
+**Example**:
+```pascal
+var
+  Format: TFormat;
+begin
+  Format := TFormat.Create(nil);
+  try
+    Format.Brush.Color := clYellow;
+    Format.Stroke.Color := clBlack;
+    Format.Stroke.Visible := True;
+    Painter.Paint(Format, RectF(0, 0, 100, 50));
+  finally
+    Format.Free;
+  end;
+end;
+```
+
+### Paint (Format + Polygon)
+
+```pascal
+procedure Paint(const AFormat: TFormat; const P: TPointsF); overload; virtual; abstract;
+```
+
+Paints a polygon using a format.
+
+## Clipping Methods
+
+### Clip
+
+```pascal
+procedure Clip(const R: TRectF); virtual; abstract;
+```
+
+Sets a clipping region. All subsequent drawing is clipped to this rectangle.
+
+**Parameters**:
+- `R`: Clipping rectangle
+
+**Example**:
+```pascal
+Painter.Clip(RectF(0, 0, 100, 100));
+try
+  // Drawing here is clipped to 100x100 area
+  Painter.TextOut(RectF(-50, 0, 150, 30), 'Clipped Text');
+finally
+  Painter.UnClip;
+end;
+```
+
+### UnClip
+
+```pascal
+procedure UnClip; virtual; abstract;
+```
+
+Removes the current clipping region.
+
+### TryClip
+
+```pascal
+function TryClip(const AText: String; const X, Y, AWidth, AHeight, AMinX: Single): Boolean; overload;
+function TryClip(const AText: String; const ARect: TRectF; const AMinX: Single): Boolean; overload;
+```
+
+Attempts to clip text if it exceeds bounds.
+
+**Parameters**:
+- `AText`: Text to check
+- `ARect`: Bounding rectangle
+- `AMinX`: Minimum X coordinate
+
+**Returns**: `True` if clipping was applied
+
+## Usage Example: Complete Rendering
+
+```pascal
+procedure DrawCustomCell(Painter: TPainter; const R: TRectF; const Text: String);
+var
+  Format: TFormat;
+  Font: TFont;
+begin
+  // Create format
+  Format := TFormat.Create(nil);
+  Font := TFont.Create(nil);
+  try
+    // Setup background
+    Format.Brush.Color := clWhite;
+    Format.Stroke.Color := clGray;
+    Format.Stroke.Visible := True;
+    Format.Stroke.Size := 1;
+    
+    // Paint background and border
+    Painter.Paint(Format, R);
+    
+    // Setup font
+    Font.Name := 'Segoe UI';
+    Font.Size := 10;
+    Font.Color := clBlack;
+    
+    // Draw text
+    Painter.SetFont(Font);
+    Painter.SetHorizontalAlign(THorizontalAlign.Left);
+    Painter.SetVerticalAlign(TVerticalAlign.Center);
+    Painter.SetTextTrimming(TTrimmingMode.Character, True);
+    
+    var TextRect := R;
+    TextRect.Inflate(-4, -2); // Apply margins
+    Painter.TextOut(TextRect, Text);
+  finally
+    Font.Free;
+    Format.Free;
+  end;
+end;
+```
+
+## Platform-Specific Notes
+
+### VCL Implementation
+
+- Uses GDI+ for smooth rendering
+- Supports all standard Windows fonts
+- Hardware-accelerated on modern systems
+
+### FireMonkey Implementation
+
+- Uses native FMX canvas
+- Cross-platform compatible (Windows, macOS, iOS, Android, Linux)
+- Supports GPU acceleration on mobile
+
+### Performance Tips
+
+1. **Minimize state changes**: Group operations that use the same brush/stroke/font
+2. **Reuse objects**: Don't create new TFormat/TFont objects for every cell
+3. **Use clipping**: Prevent overdraw by clipping to visible region
+4. **Batch similar operations**: Draw all horizontal lines together, then all vertical lines
+
+## See Also
+
+- [TRender](/api/trender) - Base class for custom renderers
+- [TFormat](/api/tformat) - Formatting classes used with painter
+- [Custom Renderers Guide](/customization/custom-renderers) - Creating custom visual elements

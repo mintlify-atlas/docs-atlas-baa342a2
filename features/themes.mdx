@@ -1,0 +1,327 @@
+---
+title: Themes
+description: Apply pre-built themes or create custom visual styles
+---
+
+TeeGrid includes several pre-built themes and supports creating custom themes to match your application's design.
+
+## Pre-Built Themes
+
+TeeGrid includes these themes:
+
+- **Default** - Standard TeeGrid appearance
+- **iOS** - iOS-style theme with teal blue accents
+- **Android** - Material Design inspired theme
+- **Black** - Dark theme with light text
+
+## Applying Themes
+
+Apply a theme using the `TGridThemes` helper:
+
+```delphi
+uses
+  Tee.Grid.Themes;
+
+// Apply to entire grid
+TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+TGridThemes.Android.ApplyTo(TeeGrid1.Grid);
+TGridThemes.Black.ApplyTo(TeeGrid1.Grid);
+
+// Or apply to a specific row group
+TGridThemes.iOS.ApplyTo(TeeGrid1.Grid.Current);
+```
+
+## VCL Style Themes
+
+For VCL applications, integrate with Windows themes:
+
+```delphi
+uses
+  VCLTee.Grid.Themes, Vcl.Themes;
+
+// Apply current VCL theme to grid
+TVCLGridThemes.ApplyTo(TeeGrid1);
+
+// Change VCL theme and apply to grid
+TStyleManager.SetStyle('Windows10 Dark');
+TVCLGridThemes.ApplyTo(TeeGrid1);
+```
+
+## Getting Available VCL Themes
+
+List all available VCL themes:
+
+```delphi
+var
+  ThemeList: TStringList;
+begin
+  ThemeList := TStringList.Create;
+  try
+    TVCLGridThemes.Available(ThemeList);
+    // ThemeList now contains all linked VCL theme names
+    ListBox1.Items.Assign(ThemeList);
+  finally
+    ThemeList.Free;
+  end;
+end;
+```
+
+## Creating Custom Themes
+
+Create a custom theme using `TCustomTheme`:
+
+```delphi
+uses
+  Tee.Grid.Themes, System.UITypes;
+
+var
+  MyTheme: TCustomTheme;
+begin
+  MyTheme := TCustomTheme.Create;
+  try
+    // Background and foreground
+    MyTheme.Brush := TAlphaColors.White;
+    MyTheme.Font.Color := TAlphaColors.Black;
+    MyTheme.Font.Name := 'Segoe UI';
+    MyTheme.Font.Size := 10;
+    
+    // Header styling
+    MyTheme.Header.Brush := TAlphaColors.Navy;
+    MyTheme.Header.Font := TAlphaColors.White;
+    
+    // Selection styling
+    MyTheme.Selected := TAlphaColors.Lightblue;
+    MyTheme.SelectedFont := TAlphaColors.Black;
+    
+    // Hover styling
+    MyTheme.Hover := TAlphaColors.Lightyellow;
+    MyTheme.HoverFont := TAlphaColors.Black;
+    
+    // Grid lines
+    MyTheme.Stroke := TAlphaColors.Silver;
+    
+    // Apply to grid
+    MyTheme.ApplyTo(TeeGrid1.Grid);
+  finally
+    MyTheme.Free;
+  end;
+end;
+```
+
+## Manual Theme Customization
+
+Customize individual grid elements:
+
+```delphi
+// Header
+TeeGrid1.Header.Format.Brush.Color := clNavy;
+TeeGrid1.Header.Format.Brush.Visible := True;
+TeeGrid1.Header.Format.Font.Color := clWhite;
+TeeGrid1.Header.Format.Font.Style := [fsBold];
+
+// Cell text
+TeeGrid1.Cells.Format.Font.Color := clBlack;
+TeeGrid1.Cells.Format.Font.Size := 10;
+
+// Selection
+TeeGrid1.Selected.Format.Brush.Color := clHighlight;
+TeeGrid1.Selected.Format.Brush.Visible := True;
+TeeGrid1.Selected.Format.Font.Color := clHighlightText;
+
+// Hover
+TeeGrid1.Selected.Hover.Brush.Color := clYellow;
+TeeGrid1.Selected.Hover.Brush.Visible := True;
+
+// Grid lines
+TeeGrid1.Rows.RowLines.Color := clSilver;
+TeeGrid1.Rows.RowLines.Visible := True;
+TeeGrid1.Header.Lines.Color := clGray;
+TeeGrid1.Header.Lines.Visible := True;
+
+// Alternate row colors
+TeeGrid1.Rows.Alternate.Visible := True;
+TeeGrid1.Rows.Alternate.Brush.Color := TAlphaColors.Aliceblue;
+TeeGrid1.Rows.Alternate.Brush.Visible := True;
+```
+
+## Row-Level Formatting
+
+Format specific rows:
+
+```delphi
+var
+  row: TRow;
+begin
+  row := TeeGrid1.Rows.Items[3];
+  row.Format.Brush.Show;
+  row.Format.Brush.Color := clWebTan;
+  row.Format.Font.Color := clRed;
+  
+  TeeGrid1.Invalidate;
+end;
+```
+
+## Cell-Level Formatting
+
+Format individual cells:
+
+```delphi
+var
+  cell: TCell;
+begin
+  cell := TeeGrid1.CellFormat.AddCell(1, TeeGrid1.Columns[1].Index);
+  cell.Format.Font.Style := [fsBold, fsStrikeOut];
+  cell.Format.Brush.Color := clYellow;
+  cell.Format.Font.Color := TColors.Red;
+  cell.Format.Brush.Show;
+  
+  TeeGrid1.Invalidate;
+end;
+```
+
+## Column-Level Formatting
+
+Format entire columns:
+
+```delphi
+// Column background
+TeeGrid1.Columns['Total'].Format.Brush.Color := clMoneyGreen;
+TeeGrid1.Columns['Total'].Format.Brush.Visible := True;
+
+// Column font
+TeeGrid1.Columns['Total'].Format.Font.Style := [fsBold];
+TeeGrid1.Columns['Total'].Format.Font.Color := clGreen;
+```
+
+## Indicator Column
+
+Customize the indicator column (row selector):
+
+```delphi
+TeeGrid1.Indicator.Visible := True;
+TeeGrid1.Indicator.Width.Value := 15;
+TeeGrid1.Indicator.Format.Brush.Color := clSilver;
+TeeGrid1.Indicator.Format.Brush.Visible := True;
+```
+
+## Parent Font
+
+Make grid inherit font from parent control:
+
+```delphi
+TeeGrid1.ParentFont := True;
+
+// Now changing the form font affects the grid
+Form1.Font.Size := 16;
+```
+
+## Scrollbar Styling
+
+Scrollbars automatically adapt to themes, but you can customize them:
+
+```delphi
+// Theme automatically adjusts scrollbar colors
+TGridThemes.Black.ApplyTo(TeeGrid1.Grid);
+// Scrollbars will now match the black theme
+```
+
+## Responsive Font Sizing
+
+Make fonts scale with DPI:
+
+```delphi
+TeeGrid1.Scaled := True;  // Enable DPI scaling
+```
+
+## Theme Example with Switching
+
+Implement theme switching in your application:
+
+```delphi
+procedure TForm1.ListBoxThemeClick(Sender: TObject);
+begin
+  case ListBox1.ItemIndex of
+    0: TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+    1: TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+    2: TGridThemes.Android.ApplyTo(TeeGrid1.Grid);
+    3: TGridThemes.Black.ApplyTo(TeeGrid1.Grid);
+  end;
+end;
+```
+
+## Dark Mode Support
+
+Implement dark mode detection:
+
+```delphi
+uses
+  Winapi.Windows, Winapi.Messages;
+
+function IsDarkModeEnabled: Boolean;
+var
+  Reg: TRegistry;
+begin
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+    if Reg.OpenKeyReadOnly('Software\Microsoft\Windows\CurrentVersion\Themes\Personalize') then
+      Result := Reg.ReadInteger('AppsUseLightTheme') = 0
+    else
+      Result := False;
+  finally
+    Reg.Free;
+  end;
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  if IsDarkModeEnabled then
+    TGridThemes.Black.ApplyTo(TeeGrid1.Grid)
+  else
+    TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+end;
+```
+
+## Saving Theme Preferences
+
+Persist user theme selection:
+
+```delphi
+uses
+  System.IniFiles;
+
+procedure TForm1.SaveTheme(const ThemeName: String);
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(ChangeFileExt(Application.ExeName, '.ini'));
+  try
+    Ini.WriteString('Appearance', 'Theme', ThemeName);
+  finally
+    Ini.Free;
+  end;
+end;
+
+function TForm1.LoadTheme: String;
+var
+  Ini: TIniFile;
+begin
+  Ini := TIniFile.Create(ChangeFileExt(Application.ExeName, '.ini'));
+  try
+    Result := Ini.ReadString('Appearance', 'Theme', 'Default');
+  finally
+    Ini.Free;
+  end;
+end;
+```
+
+## Best Practices
+
+- Apply themes after loading data for consistent appearance
+- Use `TGridThemes` for quick, consistent styling
+- Combine themes with custom formatting for specific columns or cells
+- Make the grid `ParentFont := True` for consistent typography
+- Test themes with different screen DPI settings
+- Consider user preferences and system dark mode settings
+- Cache theme objects if switching frequently

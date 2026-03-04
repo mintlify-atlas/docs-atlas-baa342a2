@@ -1,0 +1,626 @@
+---
+title: "VCL Framework"
+description: "Using TeeGrid in VCL (Visual Component Library) applications for native Windows development"
+---
+
+## Overview
+
+TeeGrid for VCL provides native Windows grid components for Win32 and Win64 applications. The VCL implementation uses the Visual Component Library framework, delivering high-performance grids with native Windows look and feel.
+
+<Note>
+  VCL TeeGrid is implemented in the `VCLTee.Grid` unit and supports both RAD Studio/Delphi and Lazarus/FreePascal.
+</Note>
+
+## Installation
+
+### RAD Studio / Delphi
+
+Add the VCL units to your project's uses clause:
+
+```pascal
+uses
+  VCLTee.Grid,           // Main TTeeGrid component
+  VCLTee.Control,        // Base control classes
+  VCLTee.Painter,        // VCL rendering
+  Tee.GridData.DB;       // Database support (automatically included)
+```
+
+### Lazarus / FreePascal
+
+TeeGrid supports Lazarus through the same `VCLTee.Grid` unit with FPC-specific conditional compilation:
+
+```pascal
+uses
+  VCLTee.Grid,
+  db, dbf;  // For database support
+```
+
+## Platform Support
+
+VCL TeeGrid is available for:
+
+- **Windows**: Win32 and Win64 platforms
+- **Lazarus**: Windows, Linux, and other FreePascal-supported platforms
+
+<CodeGroup>
+```pascal Win32/Win64 (Delphi)
+{$IFNDEF FPC}
+{$IFDEF CONDITIONALEXPRESSIONS}
+{$IF CompilerVersion>=23}
+[ComponentPlatformsAttribute(pidWin32 or pidWin64)]
+{$IFEND}
+{$ENDIF}
+{$ENDIF}
+TTeeGrid=class(TScrollableControl)
+```
+
+```pascal Lazarus/FPC
+{$mode objfpc}{$H+}
+
+uses
+  VCLTee.Grid, db;
+
+type
+  TForm1 = class(TForm)
+    TeeGrid1: TTeeGrid;
+  end;
+```
+</CodeGroup>
+
+## Architecture
+
+The VCL implementation consists of two main classes:
+
+### TVCLTeeGrid
+
+Internal grid engine that handles core functionality:
+
+```pascal VCLTee.Grid.pas:39
+TVCLTeeGrid=class(TCustomTeeGrid)
+private
+  IEditor : TControl;
+  IEditorColumn : TColumn;
+  IEditorRow : Integer;
+```
+
+**Key responsibilities:**
+- Cell editing with VCL controls
+- Scrolling and viewport management
+- Data change notifications
+- Clipboard operations (Copy/Paste)
+
+### TTeeGrid
+
+Public component that developers use:
+
+```pascal VCLTee.Grid.pas:93
+TTeeGrid=class(TScrollableControl)
+private
+  FGrid : TVCLTeeGrid;
+  FPainter : TPainter;
+```
+
+**Published properties:**
+- `Columns` - Column definitions
+- `DataSource` - Data binding
+- `Editing` - Cell editing settings
+- `Selected` - Selection appearance and behavior
+- Standard VCL properties (Align, Anchors, etc.)
+
+## Rendering
+
+### VCL Painter
+
+VCL uses Windows GDI/GDI+ for rendering through the `TGDIPainter` class:
+
+<Tabs>
+  <Tab title="GDI+ (Default)">
+    ```pascal
+    // Default painter uses GDI+ for enhanced rendering
+    TeeGrid1.Painter := TGDIPainter.Create(TeeGrid1.Canvas);
+    ```
+    
+    **Features:**
+    - Anti-aliased text and graphics
+    - Gradient fills and transparency
+    - High-quality image scaling
+  </Tab>
+  
+  <Tab title="GDI (Legacy)">
+    ```pascal
+    // Switch to plain GDI for compatibility
+    TeeGrid1.Painter := TGdiPainter.Create(TeeGrid1.Canvas);
+    ```
+    
+    **Use when:**
+    - Maximum performance needed
+    - Working with older Windows versions
+    - Specific GDI features required
+  </Tab>
+</Tabs>
+
+### Custom Painting
+
+The grid paints using a device context (HDC):
+
+```pascal VCLTee.Grid.pas:211
+procedure PaintWindow(DC: HDC); override;
+```
+
+<Tip>
+  VCL TeeGrid is double-buffered by default to eliminate flicker. Set `DoubleBuffered := True` in the published properties.
+</Tip>
+
+## Cell Editing
+
+### VCL Editor Controls
+
+VCL TeeGrid supports native VCL editor controls:
+
+```pascal
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Assign custom editor controls to columns
+  TeeGrid1.Columns['Height'].EditorClass := TTrackBar;
+  TeeGrid1.Columns['BirthDate'].EditorClass := TDateTimePicker;
+  TeeGrid1.Columns['Vehicle'].EditorClass := TComboBox;
+  TeeGrid1.Columns['EyeColor'].EditorClass := TComboBox;
+  TeeGrid1.Columns['Holidays'].EditorClass := TCheckBox;
+  TeeGrid1.Columns['Happiness'].EditorClass := TSpinEdit;
+end;
+```
+
+### Editor Events
+
+VCL-specific event signatures:
+
+<CodeGroup>
+```pascal OnCellEditing
+TCellEditingEvent = procedure(
+  const Sender: TObject;
+  const AEditor: TControl;      // VCL TControl descendant
+  const AColumn: TColumn;
+  const ARow: Integer
+) of object;
+
+procedure TForm1.TeeGrid1CellEditing(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer);
+begin
+  if AEditor is TComboBox then
+  begin
+    TComboBox(AEditor).Style := csDropDown;
+    // Configure the combobox...
+  end;
+end;
+```
+
+```pascal OnCellEdited
+TCellEditedEvent = procedure(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer;
+  var ChangeData: Boolean;
+  var NewData: String
+) of object;
+
+procedure TForm1.TeeGrid1CellEdited(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer;
+  var ChangeData: Boolean;
+  var NewData: String);
+begin
+  if AEditor is TTrackBar then
+  begin
+    NewData := FloatToStr(0.01 * TTrackBar(AEditor).Position);
+    TeeGrid1.Data.SetValue(AColumn, ARow, NewData);
+    ChangeData := False;  // We handled the data change
+  end;
+end;
+```
+</CodeGroup>
+
+## Database Integration
+
+### DataSource Binding
+
+Connect to TDataSource or TDataSet directly:
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.DB;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Option 1: Use TDataSource
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Option 2: Direct TDataSet binding
+  TeeGrid1.DataSource := ClientDataSet1;
+  
+  // Optimize for dataset scrolling
+  TeeGrid1.Selected.ScrollToView := True;
+end;
+```
+
+### Database Example
+
+<Accordion title="Complete VCL Database Example">
+```pascal Unit_DataSource.pas
+unit Unit_DataSource;
+
+interface
+
+uses
+  Winapi.Windows, System.SysUtils, System.Classes,
+  Vcl.Controls, Vcl.Forms, Data.DB, Datasnap.DBClient,
+  VCLTee.Grid, Tee.GridData.DB;
+
+type
+  TFormDatabase = class(TForm)
+    TeeGrid1: TTeeGrid;
+    ClientDataSet1: TClientDataSet;
+    DataSource1: TDataSource;
+    procedure FormCreate(Sender: TObject);
+  end;
+
+implementation
+
+procedure TFormDatabase.FormCreate(Sender: TObject);
+begin
+  // Bind to DataSource
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Cosmetic adjustments
+  TeeGrid1.Rows.Height.Value := 64;
+  TeeGrid1.Rows.Spacing.Value := 8;
+  TeeGrid1.Rows.RowLines.Hide;
+  
+  // Center-align cell text
+  TeeGrid1.Cells.TextAlign.Vertical := TVerticalAlign.Center;
+  TeeGrid1.Selected.TextAlign.Vertical := TVerticalAlign.Center;
+  
+  // Enable full row selection
+  TeeGrid1.Selected.FullRow := True;
+end;
+
+end.
+```
+</Accordion>
+
+## Themes and Styling
+
+### VCL Theme Support
+
+VCL TeeGrid integrates with VCL Styles (Windows themes):
+
+```pascal
+uses
+  VCLTee.Grid.Themes, Vcl.Themes;
+
+procedure TForm1.ApplyVCLStyle(const StyleName: string);
+begin
+  // Apply Windows VCL Style
+  TStyleManager.SetStyle(StyleName);
+  
+  // Apply to TeeGrid
+  TVCLGridThemes.ApplyTo(TeeGrid1);
+end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  Styles: TStringList;
+begin
+  Styles := TStringList.Create;
+  try
+    // Get all available VCL themes linked to executable
+    TVCLGridThemes.Available(Styles);
+    
+    // Load into UI
+    ListBox1.Items.Assign(Styles);
+  finally
+    Styles.Free;
+  end;
+end;
+```
+
+### Standard TeeGrid Themes
+
+```pascal
+uses
+  Tee.Grid.Themes;
+
+// Apply cross-platform TeeGrid themes
+TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+TGridThemes.Android.ApplyTo(TeeGrid1.Grid);
+TGridThemes.Black.ApplyTo(TeeGrid1.Grid);
+```
+
+## Scrolling
+
+### VCL ScrollBars
+
+VCL TeeGrid uses native Windows scrollbars:
+
+```pascal
+TeeGrid1.ScrollBars := ssBoth;      // Show both scrollbars
+TeeGrid1.ScrollBars := ssVertical;  // Vertical only
+TeeGrid1.ScrollBars := ssHorizontal;// Horizontal only
+TeeGrid1.ScrollBars := ssNone;      // Hide scrollbars
+
+// Mouse scrolling mode
+TeeGrid1.Scrolling.Mode := TScrollingMode.Both;  // Drag to scroll
+```
+
+## Mouse and Keyboard
+
+### VCL Input Handling
+
+VCL-specific mouse and keyboard handling:
+
+<CodeGroup>
+```pascal Mouse Events
+procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+procedure MouseMove(Shift: TShiftState; X, Y: Integer);
+procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+
+// Mouse wheel
+function DoMouseWheelDown(Shift: TShiftState; MousePos: TPoint): Boolean;
+function DoMouseWheelUp(Shift: TShiftState; MousePos: TPoint): Boolean;
+```
+
+```pascal Keyboard Events
+procedure KeyDown(var Key: Word; Shift: TShiftState);
+
+// Windows message handling
+procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
+procedure WMSetFocus(var Message: TWMSetFocus); message WM_SETFOCUS;
+procedure WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
+```
+</CodeGroup>
+
+## Clipboard Operations
+
+### Copy and Paste
+
+VCL-specific clipboard integration:
+
+```pascal
+// Copy selected cells to clipboard
+TeeGrid1.Grid.Copy;
+TeeGrid1.Grid.Copy(CustomSelection);
+
+// Paste from clipboard
+TeeGrid1.Grid.PasteSelected;
+```
+
+## Design-Time Support
+
+### Visual Editor
+
+Launch the visual TeeGrid editor at design-time or runtime:
+
+```pascal
+uses
+  VCLTee.Editor.Grid;
+
+procedure TForm1.ButtonEditClick(Sender: TObject);
+begin
+  TTeeGridEditor.Edit(Self, TeeGrid1);
+end;
+```
+
+## Platform-Specific Features
+
+### Windows Messages
+
+VCL TeeGrid responds to Windows messages:
+
+```pascal VCLTee.Grid.pas:121
+procedure WMEraseBkgnd(var Message: TWmEraseBkgnd); message WM_ERASEBKGND;
+procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
+procedure WMSetFocus(var Message: TWMSetFocus); message WM_SETFOCUS;
+procedure WMKillFocus(var Message: TWMKillFocus); message WM_KILLFOCUS;
+procedure WMSize(var Message: TWMSize); message WM_SIZE;
+```
+
+### Component Palette
+
+VCL TeeGrid appears in the component palette and can be dropped onto forms at design-time.
+
+## Performance Tips
+
+<AccordionGroup>
+  <Accordion title="Enable Double Buffering">
+    ```pascal
+    TeeGrid1.DoubleBuffered := True;  // Eliminates flicker
+    ```
+  </Accordion>
+  
+  <Accordion title="Optimize Dataset Scrolling">
+    ```pascal
+    TeeGrid1.Selected.ScrollToView := True;
+    ```
+    
+    This improves scrolling performance with large datasets by keeping the selected row in view.
+  </Accordion>
+  
+  <Accordion title="Reduce Mouse Activity">
+    ```pascal
+    // Only respond to mouse down/up, not move
+    TeeGrid1.Grid.MouseActivity := [TGridMouseSense.Down, TGridMouseSense.Up];
+    ```
+    
+    Reduces CPU usage by ignoring mouse move events.
+  </Accordion>
+  
+  <Accordion title="Switch to GDI Painter">
+    ```pascal
+    // Use plain GDI instead of GDI+ for maximum speed
+    TeeGrid1.Painter := TGdiPainter.Create(TeeGrid1.Canvas);
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Lazarus-Specific Notes
+
+### FreePascal Compatibility
+
+The VCL implementation includes FPC-specific code paths:
+
+```pascal
+{$IFDEF FPC}
+uses
+  LCLType, LCLIntf, LMessages;
+
+procedure WMSize(var Message: TLMSize); message LM_SIZE;
+{$ELSE}
+procedure WMSize(var Message: TWMSize); message WM_SIZE;
+{$ENDIF}
+```
+
+### Lazarus Database Example
+
+```pascal
+uses
+  VCLTee.Grid, db, dbf;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Open DBF table
+  Dbf1.TableName := 'disco.dbf';
+  Dbf1.Open;
+  
+  // Bind to TeeGrid (DataSource property set at design-time)
+  TeeGrid1.Selected.ScrollToView := True;
+end;
+```
+
+## Common Patterns
+
+### Full-Featured VCL Grid
+
+<Accordion title="Complete Example with All Features">
+```pascal
+unit Unit_Main;
+
+interface
+
+uses
+  Winapi.Windows, System.SysUtils, System.Classes,
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls,
+  VCLTee.Grid, VCLTee.Painter, Data.DB, Datasnap.DBClient;
+
+type
+  TFormMain = class(TForm)
+    TeeGrid1: TTeeGrid;
+    ClientDataSet1: TClientDataSet;
+    DataSource1: TDataSource;
+    procedure FormCreate(Sender: TObject);
+    procedure TeeGrid1CellEditing(const Sender: TObject;
+      const AEditor: TControl; const AColumn: TColumn;
+      const ARow: Integer);
+  private
+    procedure SetupGrid;
+    procedure SetupEditors;
+    procedure ApplyTheme;
+  end;
+
+implementation
+
+uses
+  Tee.Grid.Themes, VCLTee.Grid.Themes, Vcl.Themes, Vcl.ComCtrls;
+
+procedure TFormMain.FormCreate(Sender: TObject);
+begin
+  SetupGrid;
+  SetupEditors;
+  ApplyTheme;
+end;
+
+procedure TFormMain.SetupGrid;
+begin
+  // Bind data
+  TeeGrid1.DataSource := DataSource1;
+  
+  // Performance
+  TeeGrid1.DoubleBuffered := True;
+  TeeGrid1.Selected.ScrollToView := True;
+  
+  // Appearance
+  TeeGrid1.Rows.Height.Value := 32;
+  TeeGrid1.Cells.TextAlign.Vertical := TVerticalAlign.Center;
+  
+  // Scrolling
+  TeeGrid1.ScrollBars := ssBoth;
+  TeeGrid1.Scrolling.Mode := TScrollingMode.Both;
+  
+  // Selection
+  TeeGrid1.Selected.FullRow := True;
+end;
+
+procedure TFormMain.SetupEditors;
+begin
+  TeeGrid1.Editing.AutoEdit := True;
+  TeeGrid1.Editing.AlwaysVisible := False;
+  TeeGrid1.Editing.EnterKey := TEditingEnter.NextRow;
+  
+  // Custom editors
+  TeeGrid1.Columns['Date'].EditorClass := TDateTimePicker;
+  TeeGrid1.Columns['Status'].EditorClass := TComboBox;
+end;
+
+procedure TFormMain.ApplyTheme;
+begin
+  // Apply VCL Style
+  TStyleManager.SetStyle('Windows10');
+  TVCLGridThemes.ApplyTo(TeeGrid1);
+end;
+
+procedure TFormMain.TeeGrid1CellEditing(
+  const Sender: TObject;
+  const AEditor: TControl;
+  const AColumn: TColumn;
+  const ARow: Integer);
+begin
+  if (AColumn.Name = 'Status') and (AEditor is TComboBox) then
+  begin
+    with TComboBox(AEditor) do
+    begin
+      Items.Clear;
+      Items.Add('Active');
+      Items.Add('Inactive');
+      Items.Add('Pending');
+    end;
+  end;
+end;
+
+end.
+```
+</Accordion>
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="FireMonkey Framework" icon="mobile" href="/frameworks/firemonkey">
+    Cross-platform FMX implementation
+  </Card>
+  
+  <Card title="Lazarus Framework" icon="code" href="/frameworks/lazarus">
+    FreePascal-specific features
+  </Card>
+  
+  <Card title="Cell Editing" icon="pen" href="/features/cell-editing">
+    Editor controls and customization
+  </Card>
+  
+  <Card title="Themes" icon="palette" href="/features/themes">
+    Visual themes and styling
+  </Card>
+</CardGroup>

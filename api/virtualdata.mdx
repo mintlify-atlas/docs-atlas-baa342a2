@@ -1,0 +1,572 @@
+---
+title: 'TVirtualData'
+description: 'Abstract data interface for providing data to TeeGrid'
+icon: 'database'
+---
+
+## Overview
+
+TVirtualData is an abstract base class that defines the interface for providing data to TeeGrid. It acts as a bridge between the grid and various data sources including databases, arrays, lists, and custom data structures.
+
+<Warning>
+  TVirtualData is an abstract class. You must use one of its concrete implementations or create your own descendant class.
+</Warning>
+
+## Concrete Implementations
+
+TeeGrid includes several ready-to-use TVirtualData implementations:
+
+<CardGroup cols={2}>
+  <Card title="TVirtualDBData" icon="database">
+    **Unit:** `Tee.GridData.DB`
+    
+    Connect to TDataSet and TDataSource for database data.
+  </Card>
+  <Card title="TVirtualArrayData&lt;T&gt;" icon="brackets-square">
+    **Unit:** `Tee.GridData.Rtti`
+    
+    Use TArray&lt;T&gt; or TList&lt;T&gt; with RTTI for generic data.
+  </Card>
+  <Card title="TVirtualStringData" icon="text">
+    **Unit:** `Tee.GridData.Strings`
+    
+    String grid with Cells[Col, Row] interface like TStringGrid.
+  </Card>
+  <Card title="TBIGridData" icon="chart-line">
+    **Unit:** `BI.GridData`
+    
+    Connect to TeeBI TDataItem data structures.
+  </Card>
+</CardGroup>
+
+## Abstract Methods
+
+<Info>
+  These methods must be implemented in descendant classes.
+</Info>
+
+### Required Data Methods
+
+<ParamField path="Count" type="function">
+  Returns the total number of rows in the data source.
+  
+  **Signature:**
+  ```pascal
+  function Count: Integer; virtual; abstract;
+  ```
+  
+  **Returns:** Total row count
+</ParamField>
+
+<ParamField path="AsString" type="function">
+  Returns the string representation of data at the specified column and row.
+  
+  **Signature:**
+  ```pascal
+  function AsString(const AColumn: TColumn; const ARow: Integer): String; virtual; abstract;
+  ```
+  
+  **Parameters:**
+  - `AColumn` - The column to read
+  - `ARow` - The row index (0-based)
+  
+  **Returns:** String representation of the cell value
+</ParamField>
+
+<ParamField path="SetValue" type="procedure">
+  Updates the value at the specified column and row.
+  
+  **Signature:**
+  ```pascal
+  procedure SetValue(const AColumn: TColumn; const ARow: Integer;
+                    const AText: String); virtual; abstract;
+  ```
+  
+  **Parameters:**
+  - `AColumn` - The column to update
+  - `ARow` - The row index (0-based)
+  - `AText` - New value as string
+</ParamField>
+
+### Column Management
+
+<ParamField path="AddColumns" type="procedure">
+  Automatically creates and adds columns to the grid based on the data structure.
+  
+  **Signature:**
+  ```pascal
+  procedure AddColumns(const AColumns: TColumns); virtual; abstract;
+  ```
+  
+  **Parameters:**
+  - `AColumns` - The columns collection to populate
+</ParamField>
+
+<ParamField path="Load" type="procedure">
+  Loads or refreshes column metadata from the data source.
+  
+  **Signature:**
+  ```pascal
+  procedure Load(const AColumns: TColumns); virtual; abstract;
+  ```
+  
+  **Parameters:**
+  - `AColumns` - The columns collection to load
+</ParamField>
+
+<ParamField path="AutoWidth" type="function">
+  Calculates the optimal width for a column based on its content.
+  
+  **Signature:**
+  ```pascal
+  function AutoWidth(const APainter: TPainter;
+                    const AColumn: TColumn): Single; virtual; abstract;
+  ```
+  
+  **Parameters:**
+  - `APainter` - Painter for measuring text
+  - `AColumn` - Column to measure
+  
+  **Returns:** Optimal width in pixels
+</ParamField>
+
+### State Methods
+
+<ParamField path="Empty" type="function">
+  Checks if the data source is empty.
+  
+  **Signature:**
+  ```pascal
+  function Empty: Boolean; virtual; abstract;
+  ```
+  
+  **Returns:** True if no data is available
+</ParamField>
+
+<ParamField path="KnownCount" type="function">
+  Indicates whether the total row count is known in advance.
+  
+  **Signature:**
+  ```pascal
+  function KnownCount: Boolean; virtual; abstract;
+  ```
+  
+  **Returns:** True if Count returns an accurate value, False if the count is unknown or approximate
+</ParamField>
+
+## Virtual Methods
+
+<Info>
+  These methods have default implementations but can be overridden for custom behavior.
+</Info>
+
+### Data Access
+
+<ParamField path="AsFloat" type="function">
+  Returns the numeric value of data at the specified column and row.
+  
+  **Signature:**
+  ```pascal
+  function AsFloat(const AColumn: TColumn; const ARow: Integer): TFloat; virtual;
+  ```
+  
+  **Returns:** Numeric value (default implementation converts AsString to float)
+</ParamField>
+
+<ParamField path="DataType" type="function">
+  Returns type information for the specified column.
+  
+  **Signature:**
+  ```pascal
+  function DataType(const AColumn: TColumn): PTypeInfo; virtual;
+  ```
+  
+  **Returns:** Pointer to RTTI type information, or nil if unknown
+</ParamField>
+
+### Editing
+
+<ParamField path="EditMode" type="procedure">
+  Notifies the data source about edit mode changes.
+  
+  **Signature:**
+  ```pascal
+  procedure EditMode(const AMode: TEditMode); virtual;
+  ```
+  
+  **Parameters:**
+  - `AMode` - Edit mode: `Start`, `Cancel`, or `Finish`
+</ParamField>
+
+<ParamField path="ReadOnly" type="function">
+  Determines if a column is read-only.
+  
+  **Signature:**
+  ```pascal
+  function ReadOnly(const AColumn: TColumn): Boolean; virtual;
+  ```
+  
+  **Returns:** True if the column cannot be edited
+</ParamField>
+
+<ParamField path="ToggleBoolean" type="procedure">
+  Toggles a boolean value at the specified location.
+  
+  **Signature:**
+  ```pascal
+  procedure ToggleBoolean(const AColumn: TColumn; const ARow: Integer);
+  ```
+</ParamField>
+
+### Master-Detail
+
+<ParamField path="HasDetail" type="function">
+  Checks if a row has expandable detail data.
+  
+  **Signature:**
+  ```pascal
+  function HasDetail(const ARow: Integer): Boolean; virtual;
+  ```
+  
+  **Returns:** True if the row can be expanded to show detail grid
+</ParamField>
+
+<ParamField path="GetDetail" type="function">
+  Creates and returns a TVirtualData instance for detail data.
+  
+  **Signature:**
+  ```pascal
+  function GetDetail(const ARow: Integer; const AColumns: TColumns;
+                    out AParent: TColumn): TVirtualData; virtual;
+  ```
+  
+  **Parameters:**
+  - `ARow` - Master row index
+  - `AColumns` - Columns for the detail grid
+  - `AParent` - Returns the parent column for the relationship
+  
+  **Returns:** TVirtualData instance for the detail data
+</ParamField>
+
+### Expansion
+
+<ParamField path="CanExpand" type="function">
+  Determines if a row can be expanded.
+  
+  **Signature:**
+  ```pascal
+  function CanExpand(const Sender: TRender; const ARow: Integer): Boolean; virtual;
+  ```
+  
+  **Returns:** True if row expansion is supported
+</ParamField>
+
+### Sorting
+
+<ParamField path="CanSortBy" type="function">
+  Checks if sorting by a column is supported.
+  
+  **Signature:**
+  ```pascal
+  function CanSortBy(const AColumn: TColumn): Boolean; virtual;
+  ```
+  
+  **Returns:** True if the column can be sorted
+</ParamField>
+
+<ParamField path="SortBy" type="procedure">
+  Sorts data by the specified column.
+  
+  **Signature:**
+  ```pascal
+  procedure SortBy(const AColumn: TColumn); virtual;
+  ```
+</ParamField>
+
+<ParamField path="IsSorted" type="function">
+  Checks if data is currently sorted by a column.
+  
+  **Signature:**
+  ```pascal
+  function IsSorted(const AColumn: TColumn; out Ascending: Boolean): Boolean; virtual;
+  ```
+  
+  **Parameters:**
+  - `Ascending` - Returns True if sorted ascending, False if descending
+  
+  **Returns:** True if data is sorted by this column
+</ParamField>
+
+### Calculations
+
+<ParamField path="Calculate" type="function">
+  Performs calculations on column data.
+  
+  **Signature:**
+  ```pascal
+  function Calculate(const AColumn: TColumn;
+                    const ACalculation: TColumnCalculation): TFloat;
+  ```
+  
+  **Parameters:**
+  - `AColumn` - Column to calculate
+  - `ACalculation` - Type: `Count`, `Sum`, `Min`, `Max`, or `Average`
+  
+  **Returns:** Calculated result
+</ParamField>
+
+### Sizing
+
+<ParamField path="AutoHeight" type="function">
+  Calculates optimal height for a cell with multi-line content.
+  
+  **Signature:**
+  ```pascal
+  function AutoHeight(const APainter: TPainter; const AColumn: TColumn;
+                     const ARow: Integer; out AHeight: Single): Boolean; virtual;
+  ```
+  
+  **Returns:** True if auto-height was calculated
+</ParamField>
+
+<ParamField path="LongestString" type="function">
+  Measures the longest string in a column for auto-width calculation.
+  
+  **Signature:**
+  ```pascal
+  function LongestString(const APainter: TPainter;
+                        const AColumn: TColumn): Single;
+  ```
+  
+  **Returns:** Width of longest string in pixels
+</ParamField>
+
+### State Management
+
+<ParamField path="EOF" type="function">
+  Checks if a row index is beyond the end of data.
+  
+  **Signature:**
+  ```pascal
+  function EOF(const ARow: Integer): Boolean; virtual;
+  ```
+  
+  **Returns:** True if row index exceeds available data
+</ParamField>
+
+## Events and Callbacks
+
+### Protected Event Triggers
+
+<ParamField path="Refresh" type="procedure">
+  Triggers the OnRefresh event to notify the grid of data changes.
+  
+  **Signature:**
+  ```pascal
+  procedure Refresh; virtual;
+  ```
+</ParamField>
+
+<ParamField path="Repaint" type="procedure">
+  Triggers the OnRepaint event to request a visual update.
+  
+  **Signature:**
+  ```pascal
+  procedure Repaint;
+  ```
+</ParamField>
+
+<ParamField path="RowChanged" type="procedure">
+  Notifies that a specific row's data has changed.
+  
+  **Signature:**
+  ```pascal
+  procedure RowChanged(const ARow: Integer); virtual;
+  ```
+</ParamField>
+
+<ParamField path="EditingChanged" type="procedure">
+  Notifies about editing state changes.
+  
+  **Signature:**
+  ```pascal
+  procedure EditingChanged(const IsEditing: Boolean); virtual;
+  ```
+</ParamField>
+
+### Event Properties
+
+<ResponseField name="OnRefresh" type="TNotifyEvent">
+  Fired when data needs to be refreshed from the source.
+</ResponseField>
+
+<ResponseField name="OnRepaint" type="TNotifyEvent">
+  Fired when the grid needs to be repainted.
+</ResponseField>
+
+<ResponseField name="OnChangeRow" type="TRowChangedEvent">
+  Fired when the current row changes.
+  
+  **Signature:**
+  ```pascal
+  procedure(const Sender: TObject; const ARow: Integer) of object;
+  ```
+</ResponseField>
+
+<ResponseField name="OnEditing" type="TDataEditingEvent">
+  Fired when editing starts or stops.
+  
+  **Signature:**
+  ```pascal
+  procedure(const Sender: TObject; const IsEditing: Boolean) of object;
+  ```
+</ResponseField>
+
+## Class Methods
+
+<ParamField path="From" type="class function">
+  Factory method to create appropriate TVirtualData instance from a component.
+  
+  **Signature:**
+  ```pascal
+  class function From(const ASource: TComponent): TVirtualData; virtual;
+  ```
+  
+  **Returns:** TVirtualData instance or nil if source is not supported
+</ParamField>
+
+<ParamField path="IsNumeric" type="class function">
+  Checks if a column contains numeric data.
+  
+  **Signature:**
+  ```pascal
+  class function IsNumeric(const AColumn: TColumn): Boolean; virtual;
+  ```
+  
+  **Returns:** True for numeric data types
+</ParamField>
+
+## Example: Custom TVirtualData Implementation
+
+```pascal
+type
+  TMyData = record
+    Name: string;
+    Age: Integer;
+    Email: string;
+  end;
+  
+  TMyDataArray = TArray<TMyData>;
+  
+  TMyVirtualData = class(TVirtualData)
+  private
+    FData: TMyDataArray;
+  protected
+    function Empty: Boolean; override;
+    function KnownCount: Boolean; override;
+  public
+    constructor Create(const AData: TMyDataArray);
+    
+    procedure AddColumns(const AColumns: TColumns); override;
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+    function AutoWidth(const APainter: TPainter; const AColumn: TColumn): Single; override;
+    function Count: Integer; override;
+    procedure Load(const AColumns: TColumns); override;
+    procedure SetValue(const AColumn: TColumn; const ARow: Integer;
+                      const AText: String); override;
+  end;
+
+implementation
+
+constructor TMyVirtualData.Create(const AData: TMyDataArray);
+begin
+  inherited Create;
+  FData := AData;
+end;
+
+function TMyVirtualData.Empty: Boolean;
+begin
+  Result := Length(FData) = 0;
+end;
+
+function TMyVirtualData.KnownCount: Boolean;
+begin
+  Result := True; // We know the exact count
+end;
+
+function TMyVirtualData.Count: Integer;
+begin
+  Result := Length(FData);
+end;
+
+procedure TMyVirtualData.AddColumns(const AColumns: TColumns);
+begin
+  AColumns.Add('Name');
+  AColumns.Add('Age');
+  AColumns.Add('Email');
+end;
+
+function TMyVirtualData.AsString(const AColumn: TColumn;
+  const ARow: Integer): String;
+begin
+  if ARow < Length(FData) then
+  begin
+    if AColumn.Name = 'Name' then
+      Result := FData[ARow].Name
+    else if AColumn.Name = 'Age' then
+      Result := IntToStr(FData[ARow].Age)
+    else if AColumn.Name = 'Email' then
+      Result := FData[ARow].Email;
+  end;
+end;
+
+procedure TMyVirtualData.SetValue(const AColumn: TColumn;
+  const ARow: Integer; const AText: String);
+begin
+  if ARow < Length(FData) then
+  begin
+    if AColumn.Name = 'Name' then
+      FData[ARow].Name := AText
+    else if AColumn.Name = 'Age' then
+      FData[ARow].Age := StrToIntDef(AText, 0)
+    else if AColumn.Name = 'Email' then
+      FData[ARow].Email := AText;
+    
+    RowChanged(ARow);
+  end;
+end;
+
+function TMyVirtualData.AutoWidth(const APainter: TPainter;
+  const AColumn: TColumn): Single;
+begin
+  Result := LongestString(APainter, AColumn);
+end;
+
+procedure TMyVirtualData.Load(const AColumns: TColumns);
+begin
+  // No additional loading needed for in-memory array
+end;
+```
+
+## Registration
+
+Register custom TVirtualData classes to enable automatic detection:
+
+```pascal
+initialization
+  TVirtualDataClasses.Register(TMyVirtualData);
+  
+finalization
+  TVirtualDataClasses.UnRegister(TMyVirtualData);
+```
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="TTeeGrid" icon="table" href="/api/teegrid">
+    Main grid component
+  </Card>
+  <Card title="TCustomTeeGrid" icon="diagram-project" href="/api/customteegrid">
+    Abstract base grid class
+  </Card>
+</CardGroup>

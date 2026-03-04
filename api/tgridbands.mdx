@@ -1,0 +1,259 @@
+---
+title: TGridBands
+description: Collection class for managing grid bands - rectangular areas that display at headers, footers, or custom positions
+---
+
+## Overview
+
+The `TGridBands` class is a collection that manages multiple `TGridBand` objects. Grid bands are rectangular areas within a TeeGrid that can display headers, footers, totals, or custom content. Each band supports mouse interaction, custom height, and click events.
+
+## Class Hierarchy
+
+```
+TCollectionChange
+  └── TGridBands
+```
+
+## Properties
+
+### Visible
+
+```pascal
+property Visible: Boolean read FVisible write SetVisible default True;
+```
+
+Controls whether the band collection is visible in the grid.
+
+**Default**: `True`
+
+**Example**:
+```pascal
+TeeGrid1.Header.Bands.Visible := False; // Hide all header bands
+```
+
+### Items
+
+```pascal
+property Items[Index: Integer]: TGridBand read Get write Put; default;
+```
+
+Provides indexed access to individual `TGridBand` objects in the collection.
+
+**Parameters**:
+- `Index`: Zero-based integer index
+
+**Example**:
+```pascal
+var
+  Band: TGridBand;
+begin
+  Band := TeeGrid1.Header.Bands[0];
+  Band.Height.Pixels := 40;
+end;
+```
+
+### Floating
+
+```pascal
+var Floating: Boolean;
+```
+
+Determines whether bands float over grid content or occupy fixed space.
+
+### Height
+
+```pascal
+var Height: Single;
+```
+
+The total calculated height of all bands in the collection.
+
+## Methods
+
+### Constructor Create
+
+```pascal
+Constructor Create(AOwner: TPersistent; const AChanged: TNotifyEvent);
+```
+
+Creates a new `TGridBands` collection.
+
+**Parameters**:
+- `AOwner`: The persistent object that owns this collection
+- `AChanged`: Event handler called when the collection changes
+
+### Assign
+
+```pascal
+procedure Assign(Source: TPersistent); override;
+```
+
+Copies properties from another persistent object.
+
+**Parameters**:
+- `Source`: The source object to copy from
+
+**Example**:
+```pascal
+TeeGrid2.Header.Bands.Assign(TeeGrid1.Header.Bands);
+```
+
+### AddText
+
+```pascal
+function AddText(const AText: String): TTextBand;
+```
+
+Adds a new text band to the collection with the specified text.
+
+**Parameters**:
+- `AText`: The text to display in the band
+
+**Returns**: The newly created `TTextBand` object
+
+**Example**:
+```pascal
+var
+  Band: TTextBand;
+begin
+  Band := TeeGrid1.Header.Bands.AddText('Monthly Report');
+  Band.Height.Pixels := 30;
+  Band.TextRender.Font.Size := 14;
+  Band.TextRender.Font.Style := [fsBold];
+end;
+```
+
+### CalcHeight
+
+```pascal
+procedure CalcHeight(const APainter: TPainter; const ATotal: Single);
+```
+
+Calculates the total height required for all bands in the collection.
+
+**Parameters**:
+- `APainter`: The painter object used for measurement calculations
+- `ATotal`: The total available height
+
+### CanDisplay
+
+```pascal
+function CanDisplay: Boolean; inline;
+```
+
+Returns `True` if the band collection can be displayed (is visible and contains items).
+
+**Returns**: Boolean indicating if bands should be painted
+
+### Mouse
+
+```pascal
+procedure Mouse(var AState: TMouseState; const AWidth, AHeight: Single);
+```
+
+Handles mouse events for all bands in the collection.
+
+**Parameters**:
+- `AState`: The current mouse state (position, button, event type)
+- `AWidth`: The width of the band area
+- `AHeight`: The height of the band area
+
+### Paint
+
+```pascal
+procedure Paint(var AData: TRenderData);
+```
+
+Paints all visible bands in the collection.
+
+**Parameters**:
+- `AData`: Rendering data containing painter and bounds information
+
+## Related Classes
+
+### TGridBand
+
+Base class for individual bands with the following key properties:
+
+- **Height**: `TBandHeight` - The height of the band
+- **OnClick**: `TNotifyEvent` - Event triggered when the band is clicked
+- **Visible**: `Boolean` - Controls band visibility
+- **Hover**: Inherited hover support for mouse interaction
+
+### TTextBand
+
+Specialized band for displaying text, inherits from `TGridBand`:
+
+- **Text**: `String` - The text to display
+- **TextRender**: `TCellRender` - Formatting options for the text
+
+## Usage Examples
+
+### Creating a Custom Header
+
+```pascal
+procedure SetupCustomHeader(Grid: TTeeGrid);
+var
+  TitleBand: TTextBand;
+begin
+  Grid.Headers.Visible := True;
+  
+  // Add title band
+  TitleBand := Grid.Headers.AddText('Sales Dashboard');
+  TitleBand.Height.Pixels := 40;
+  TitleBand.TextRender.Font.Size := 16;
+  TitleBand.TextRender.Font.Style := [fsBold];
+  TitleBand.Format.Brush.Color := clNavy;
+  TitleBand.TextRender.Font.Color := clWhite;
+end;
+```
+
+### Adding Multiple Bands
+
+```pascal
+procedure AddMultipleBands(Grid: TTeeGrid);
+var
+  Band1, Band2: TTextBand;
+begin
+  // Add header bands
+  Band1 := Grid.Headers.AddText('Company Name');
+  Band1.Height.Pixels := 30;
+  
+  Band2 := Grid.Headers.AddText('Report Date: ' + DateToStr(Now));
+  Band2.Height.Pixels := 25;
+  Band2.TextRender.Font.Size := 10;
+end;
+```
+
+### Handling Band Click Events
+
+```pascal
+procedure TForm1.CreateBandWithClick;
+var
+  Band: TTextBand;
+begin
+  Band := TeeGrid1.Headers.AddText('Click Me');
+  Band.OnClick := BandClickHandler;
+end;
+
+procedure TForm1.BandClickHandler(Sender: TObject);
+begin
+  ShowMessage('Band clicked!');
+end;
+```
+
+## Constants
+
+### Spacing
+
+```pascal
+const Spacing = 0;
+```
+
+The spacing between bands (currently fixed at 0 pixels).
+
+## See Also
+
+- [TGridSelection](/api/tgridselection) - Cell selection management
+- [TGridEditing](/api/tgridediting) - Cell editing configuration
+- [TIndicator](/api/tindicator) - Grid row indicator column

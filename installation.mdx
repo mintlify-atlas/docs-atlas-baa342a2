@@ -1,0 +1,227 @@
+---
+title: Installation
+description: Step-by-step guide to installing TeeGrid in RAD Studio, Delphi, C++ Builder, and Lazarus
+---
+
+## Download TeeGrid
+
+Before installation, download the latest version of TeeGrid:
+
+<Card title="Download Latest Version" icon="download" href="https://www.steema.com/downloads/gridvcl">
+  Get the latest TeeGrid release from Steema Software
+</Card>
+
+The download includes:
+- Source code for VCL and FireMonkey
+- Package files for RAD Studio and Lazarus
+- Demo projects and examples
+- Documentation
+
+## Installation for RAD Studio / Delphi / C++
+
+<Steps>
+  <Step title="Extract the downloaded files">
+    Extract the TeeGrid archive to a folder on your system, for example:
+    ```
+    C:\TeeGrid\
+    ```
+  </Step>
+
+  <Step title="Open the package in RAD Studio">
+    Launch RAD Studio, Delphi, or C++ Builder and open the appropriate package file:
+    
+    **For VCL projects:**
+    ```
+    src\delphi\Packages\VCL\TeeGrid.dproj
+    ```
+    
+    **For FireMonkey projects:**
+    ```
+    src\delphi\Packages\FMX\TeeGridFMX.dproj
+    ```
+    
+    <Note>
+      Choose the package that matches your IDE version. If you're using an older IDE version, you may need to open the corresponding `.dpk` file.
+    </Note>
+  </Step>
+
+  <Step title="Build the package">
+    Right-click the package in the Project Manager and select **Build**.
+    
+    This compiles the TeeGrid library units.
+  </Step>
+
+  <Step title="Install the package">
+    Right-click the package again and select **Install**.
+    
+    You should see a confirmation message that TeeGrid components have been installed:
+    - `TTeeGrid` (VCL or FMX)
+    
+    The component will appear in the Tool Palette under the **TeeGrid** tab.
+  </Step>
+
+  <Step title="Add library paths">
+    Add the TeeGrid source paths to your IDE library path:
+    
+    Go to **Tools → Options → Language → Delphi → Library**
+    
+    Add these paths to the **Library path** for each platform you're using:
+    
+    **For VCL:**
+    ```
+    C:\TeeGrid\src\delphi
+    C:\TeeGrid\src\delphi\VCL
+    ```
+    
+    **For FireMonkey:**
+    ```
+    C:\TeeGrid\src\delphi
+    C:\TeeGrid\src\delphi\FMX
+    ```
+    
+    <Note>
+      Replace `C:\TeeGrid\` with your actual installation path.
+    </Note>
+  </Step>
+</Steps>
+
+## Installation for Lazarus FreePascal
+
+<Steps>
+  <Step title="Extract the downloaded files">
+    Extract the TeeGrid archive to a folder, for example:
+    ```
+    ~/TeeGrid/
+    ```
+    or on Windows:
+    ```
+    C:\TeeGrid\
+    ```
+  </Step>
+
+  <Step title="Open the Lazarus package">
+    Launch Lazarus IDE and open the package file:
+    ```
+    Menu → Package → Open Package File (.lpk)
+    ```
+    
+    Navigate to and open:
+    ```
+    src\delphi\Packages\Lazarus\TeeGrid_Lazarus.lpk
+    ```
+  </Step>
+
+  <Step title="Compile the package">
+    In the Package dialog, click **Compile**.
+    
+    Lazarus will compile all TeeGrid units.
+  </Step>
+
+  <Step title="Install the package">
+    Click **Use → Install** in the Package dialog.
+    
+    Lazarus will ask to rebuild the IDE. Click **Yes**.
+    
+    After the IDE restarts, `TTeeGrid` will be available in the component palette.
+  </Step>
+
+  <Step title="Configure library paths (if needed)">
+    If you encounter unit not found errors, add the TeeGrid paths:
+    
+    Go to **Project → Project Options → Compiler Options → Paths**
+    
+    Add to **Other unit files**:
+    ```
+    ~/TeeGrid/src/delphi
+    ~/TeeGrid/src/delphi/VCL
+    ```
+  </Step>
+</Steps>
+
+## Verify Installation
+
+To verify that TeeGrid is correctly installed:
+
+<Steps>
+  <Step title="Create a new project">
+    Create a new VCL or FireMonkey application.
+  </Step>
+
+  <Step title="Add TTeeGrid component">
+    Open the Tool Palette and locate the **TeeGrid** tab.
+    
+    Drag a `TTeeGrid` component onto your form.
+  </Step>
+
+  <Step title="Run the project">
+    Press **F9** to compile and run.
+    
+    You should see an empty grid on your form.
+  </Step>
+</Steps>
+
+<Note>
+  If the component doesn't appear in the palette, check that:
+  - The package was installed successfully
+  - The library paths are correctly configured
+  - You're looking in the correct component palette tab
+</Note>
+
+## Project Configuration
+
+For each project that uses TeeGrid, ensure you add the required units to your `uses` clause:
+
+<CodeGroup>
+
+```pascal VCL Project
+uses
+  VCLTee.Grid,      // Main TeeGrid component
+  Tee.GridData,     // Data source classes
+  Tee.GridData.Rtti; // RTTI data binding
+```
+
+```pascal FireMonkey Project
+uses
+  FMXTee.Grid,      // Main TeeGrid component  
+  Tee.GridData,     // Data source classes
+  Tee.GridData.Rtti; // RTTI data binding
+```
+
+```pascal Database Support
+uses
+  Tee.GridData.DB;  // Dataset binding support
+```
+
+</CodeGroup>
+
+## Troubleshooting
+
+### Package Not Installing
+
+If the package fails to install:
+
+1. Check that you're using a compatible IDE version
+2. Try building the package for the correct platform (Win32/Win64)
+3. Check for compilation errors in the Messages window
+
+### Components Not Appearing
+
+If `TTeeGrid` doesn't appear in the palette:
+
+1. Verify the package is in the **Installed Packages** list (Components → Install Packages)
+2. Try restarting the IDE
+3. Check that the `.bpl` file was created in the appropriate folder
+
+### Unit Not Found Errors
+
+If you get "Unit not found" errors:
+
+1. Verify the library paths are correctly set
+2. Check that the paths use the correct path separators for your OS
+3. Ensure you've added both the main `delphi` folder and the framework folder (`VCL` or `FMX`)
+
+## Next Steps
+
+<Card title="Quick Start Tutorial" icon="rocket" href="/quickstart">
+  Learn how to create your first TeeGrid with real data
+</Card>

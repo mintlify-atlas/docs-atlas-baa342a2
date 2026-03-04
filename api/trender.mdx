@@ -1,0 +1,489 @@
+---
+title: TRender
+description: Base class for all custom rendering shapes in TeeGrid
+---
+
+## Overview
+
+`TRender` is the base class for all custom rendering shapes in TeeGrid. It provides the foundation for painting cells, headers, and other grid elements with custom visual representations.
+
+The rendering system in TeeGrid includes specialized renderers like `TFormatRender`, `TTextRender`, `TBooleanRender`, `TExpanderRender`, and `TProgressRender`.
+
+**Unit**: `Tee.Renders.pas`
+
+## Class Hierarchy
+
+```
+TPersistentChange
+└── TRender
+    └── TFormatRender
+        ├── TTextRender
+        │   ├── TVisibleTextRender
+        │   │   ├── TCellRender
+        │   │   └── THover
+        │   ├── TBoxRender
+        │   │   ├── TBooleanRender
+        │   │   └── TExpanderRender
+        │   └── TPasswordRender
+        └── TProgressRender
+```
+
+## TRender Base Class
+
+### Methods
+
+#### Paint
+
+```pascal
+procedure Paint(var AData: TRenderData); virtual;
+```
+
+Renders the visual representation of the cell or element.
+
+**Parameters**:
+- `AData`: Rendering data containing bounds, painter, data value, and row index
+
+**Example**:
+```pascal
+var
+  Render: TRender;
+  Data: TRenderData;
+begin
+  Render := TTextRender.Create(nil);
+  try
+    Data.Bounds := RectF(0, 0, 100, 25);
+    Data.Data := 'Hello World';
+    Data.Painter := MyPainter;
+    Data.Row := 0;
+    
+    Render.Paint(Data);
+  finally
+    Render.Free;
+  end;
+end;
+```
+
+#### Hit
+
+```pascal
+function Hit(const R: TRectF; const X, Y: Single): Boolean; virtual;
+```
+
+Determines if a point (X, Y) is within the renderable area.
+
+**Parameters**:
+- `R`: Rectangle bounds
+- `X`, `Y`: Point coordinates
+
+**Returns**: `True` if the point hits the render area
+
+## TRenderData Record
+
+The `TRenderData` record contains all information needed for rendering:
+
+```pascal
+type
+  TRenderData = record
+    Bounds: TRectF;      // Rectangle to paint within
+    Data: String;        // Cell data (as string)
+    Painter: TPainter;   // Painter instance for drawing
+    Row: Integer;        // Row index
+    
+    function AsBoolean: Boolean;
+    procedure ClearData;
+    function IsEmpty: Boolean;
+  end;
+```
+
+### Methods
+
+- `AsBoolean`: Converts data to boolean value
+- `ClearData`: Clears the data string
+- `IsEmpty`: Checks if data is empty
+
+## TFormatRender
+
+Rectangle shape renderer with borders and format support.
+
+### Properties
+
+#### Borders
+
+```pascal
+property Borders: TBorders read GetBorders write SetBorders;
+```
+
+Left, top, right, and bottom border strokes.
+
+**Example**:
+```pascal
+Render.Borders.Left.Visible := True;
+Render.Borders.Left.Color := clBlue;
+Render.Borders.Left.Size := 2;
+```
+
+#### Format
+
+```pascal
+property Format: TTextFormat read GetFormat write SetFormat;
+```
+
+Background and stroke formatting.
+
+### Methods
+
+#### HasFormat
+
+```pascal
+function HasFormat: Boolean;
+```
+
+Returns `True` if format properties are assigned.
+
+#### StrokeHeight
+
+```pascal
+function StrokeHeight: Single;
+```
+
+Calculates the total height of all border strokes.
+
+## TTextRender
+
+Rectangle renderer with text, margins, and alignment support.
+
+### Properties
+
+#### Margins
+
+```pascal
+property Margins: TMargins read GetMargins write SetMargins;
+```
+
+Left, top, right, bottom margins (pixels or %).
+
+**Example**:
+```pascal
+Render.Margins.Left.Value := 4;
+Render.Margins.Top.Value := 2;
+Render.Margins.Right.Value := 4;
+Render.Margins.Bottom.Value := 2;
+```
+
+#### TextAlign
+
+```pascal
+property TextAlign: TTextAlign read FAlign write SetAlign;
+```
+
+Horizontal and vertical text alignment.
+
+**Example**:
+```pascal
+Render.TextAlign.Horizontal := THorizontalAlign.Center;
+Render.TextAlign.Vertical := TVerticalAlign.Center;
+```
+
+#### Trimming
+
+```pascal
+property Trimming: TTextTrimming read GetTrimming write SetTrimming;
+```
+
+Text trimming mode and ellipsis settings.
+
+**Example**:
+```pascal
+Render.Trimming.Mode := TTrimmingMode.Character;
+Render.Trimming.Ellipsi := True;
+```
+
+### Methods
+
+#### CalcHeight
+
+```pascal
+function CalcHeight(const APainter: TPainter): Single; overload;
+function CalcHeight(const APainter: TPainter; const AText: String): Single; overload;
+```
+
+Calculates the required height for rendering text.
+
+**Parameters**:
+- `APainter`: Painter instance for text measurement
+- `AText`: Text to measure (optional)
+
+**Returns**: Required height in pixels
+
+## TBooleanRender
+
+Checkbox-style renderer for boolean values.
+
+### Properties
+
+#### Style
+
+```pascal
+property Style: TBooleanRenderStyle read FStyle write SetStyle;
+```
+
+**Values**:
+- `TBooleanRenderStyle.Check`: Checkbox with checkmark
+- `TBooleanRenderStyle.Text`: Text representation ("True"/"False")
+
+#### CheckFormat
+
+```pascal
+property CheckFormat: TFormat read FCheckFormat write SetCheckFormat;
+```
+
+Format for the check mark itself.
+
+**Example**:
+```pascal
+var
+  BoolRender: TBooleanRender;
+begin
+  BoolRender := TBooleanRender.Create(nil);
+  BoolRender.Style := TBooleanRenderStyle.Check;
+  BoolRender.CheckFormat.Stroke.Color := clGreen;
+  BoolRender.CheckFormat.Stroke.Size := 2;
+end;
+```
+
+## TExpanderRender
+
+Expander renderer with plus/minus, triangle, or arrow styles.
+
+### Properties
+
+#### Style
+
+```pascal
+property Style: TExpanderStyle read FStyle write SetStyle;
+```
+
+**Values**:
+- `TExpanderStyle.PlusMinus`: Plus/minus symbols
+- `TExpanderStyle.Triangle`: Triangle shapes
+- `TExpanderStyle.Arrow`: Arrow symbols
+
+#### AlwaysExpand
+
+```pascal
+property AlwaysExpand: Boolean read FAlwaysExpand write FAlwaysExpand;
+```
+
+Always show expand indicator, even if no children.
+
+#### ExpandFormat
+
+```pascal
+property ExpandFormat: TFormat read FExpandFormat write SetExpandFormat;
+```
+
+Format for the expand symbol background.
+
+#### ExpandLine
+
+```pascal
+property ExpandLine: TStroke read FExpandLine write SetExpandLine;
+```
+
+Stroke for drawing the expand symbol lines.
+
+### Events
+
+#### OnCanExpand
+
+```pascal
+property OnCanExpand: TExpanderEvent read FOnCanExpand write FOnCanExpand;
+```
+
+Determines if a row can be expanded.
+
+```pascal
+type
+  TExpanderEvent = function(const Sender: TRender; const ARow: Integer): Boolean of object;
+```
+
+#### OnExpand
+
+```pascal
+property OnExpand: TExpanderEvent read FOnExpand write FOnExpand;
+```
+
+Fired when expanding/collapsing a row.
+
+#### OnGetExpanded
+
+```pascal
+property OnGetExpanded: TExpanderEvent read FOnGetExpanded write FOnGetExpanded;
+```
+
+Gets the current expanded state.
+
+**Example**:
+```pascal
+function TForm1.ExpanderCanExpand(const Sender: TRender; const ARow: Integer): Boolean;
+begin
+  Result := HasChildren(ARow);
+end;
+
+function TForm1.ExpanderGetExpanded(const Sender: TRender; const ARow: Integer): Boolean;
+begin
+  Result := FExpandedRows.Contains(ARow);
+end;
+
+procedure TForm1.SetupExpander;
+begin
+  Expander.Style := TExpanderStyle.Triangle;
+  Expander.OnCanExpand := ExpanderCanExpand;
+  Expander.OnGetExpanded := ExpanderGetExpanded;
+end;
+```
+
+### Methods
+
+#### Expand
+
+```pascal
+procedure Expand(const ARow: Integer);
+```
+
+Toggles the expanded state of a row.
+
+#### PaintLines
+
+```pascal
+procedure PaintLines(var AData: TRenderData);
+```
+
+Paints hierarchical connection lines.
+
+## TProgressRender
+
+Progress bar renderer showing percentage completion.
+
+### Properties
+
+#### Minimum
+
+```pascal
+property Minimum: Single read FMin write SetMin;
+```
+
+Minimum value (default: 0).
+
+#### Maximum
+
+```pascal
+property Maximum: Single read FMax write SetMax;
+```
+
+Maximum value (default: 100).
+
+#### Orientation
+
+```pascal
+property Orientation: TOrientation read FOrientation write SetOrientation;
+```
+
+**Values**:
+- `TOrientation.Horizontal`: Left to right fill
+- `TOrientation.Vertical`: Bottom to top fill
+
+**Example**:
+```pascal
+var
+  ProgressRender: TProgressRender;
+begin
+  ProgressRender := TProgressRender.Create(nil);
+  ProgressRender.Minimum := 0;
+  ProgressRender.Maximum := 100;
+  ProgressRender.Orientation := TOrientation.Horizontal;
+  ProgressRender.Format.Brush.Color := clGreen;
+end;
+```
+
+## TPasswordRender
+
+Text renderer that masks password characters.
+
+**Example**:
+```pascal
+var
+  PassRender: TPasswordRender;
+begin
+  PassRender := TPasswordRender.Create(nil);
+  // Automatically masks text as '***'
+end;
+```
+
+## TShapePainter Helper
+
+Utility class for painting common shapes.
+
+### Methods
+
+#### Check
+
+```pascal
+class procedure Check(const APainter: TPainter; const ARect: TRectF); static;
+```
+
+Draws a checkmark symbol.
+
+#### PlusMinus
+
+```pascal
+class procedure PlusMinus(const APainter: TPainter; const ARect: TRectF; const IsExpanded: Boolean); static;
+```
+
+Draws plus or minus symbol.
+
+#### Arrow.Down / Arrow.Right
+
+```pascal
+class procedure TArrow.Down(const APainter: TPainter; const ARect: TRectF); static;
+class procedure TArrow.Right(const APainter: TPainter; const ARect: TRectF); static;
+```
+
+Draws arrow symbols.
+
+#### Triangle.LeftRight / Triangle.TopBottom
+
+```pascal
+class procedure TTriangle.LeftRight(const APainter: TPainter; const ARect: TRectF); static;
+class procedure TTriangle.TopBottom(const APainter: TPainter; const ARect: TRectF); static;
+```
+
+Draws triangle symbols.
+
+## Creating Custom Renderers
+
+To create a custom renderer, inherit from `TRender` or one of its descendants:
+
+```pascal
+type
+  TMyCustomRender = class(TTextRender)
+  public
+    procedure Paint(var AData: TRenderData); override;
+  end;
+
+procedure TMyCustomRender.Paint(var AData: TRenderData);
+begin
+  // Custom painting logic
+  inherited; // Call base class if needed
+  
+  // Additional custom drawing
+  AData.Painter.SetBrush(Format.Brush);
+  AData.Painter.FillEllipse(AData.Bounds);
+end;
+```
+
+## See Also
+
+- [TPainter](/api/tpainter) - Abstract painter class for rendering
+- [TFormat](/api/tformat) - Formatting classes for styles and colors
+- [Custom Renderers Guide](/customization/custom-renderers) - How to create custom renderers

@@ -1,0 +1,499 @@
+---
+title: TVirtualDataRtti
+description: Virtual data adapters for binding records, objects, arrays, and lists using RTTI
+---
+
+## Overview
+
+The `Tee.GridData.Rtti` unit provides several classes to automatically link TeeGrid with records, objects, arrays, and generic collections using Delphi's RTTI (Runtime Type Information) system.
+
+<Note>
+These classes use reflection to automatically discover and bind to record fields and class properties, eliminating the need for manual column setup.
+</Note>
+
+## Classes
+
+### TVirtualDataRtti
+
+Base class that provides RTTI-based data binding functionality. Typically not used directly.
+
+### TVirtualData\<T\>
+
+Generic class that binds to any type using RTTI. This is the most flexible adapter and can handle:
+
+- Single records or objects
+- `TArray<T>` - Dynamic arrays
+- `TList<T>` - Generic lists
+- `TObjectList<T>` - Object lists
+
+### Helper Classes
+
+For convenience, the following type aliases are provided:
+
+- `TVirtualArrayData<T>` - Alias for `TVirtualData<TArray<T>>`
+- `TVirtualArray2DData<T>` - Alias for `TVirtualArrayData<TArray<T>>`
+- `TVirtualListData<T>` - Alias for `TVirtualData<TList<T>>`
+- `TVirtualObjectListData<T>` - Alias for `TVirtualData<TObjectList<T>>`
+
+## TVirtualData\<T\> Constructor
+
+<ResponseField name="Create" type="constructor">
+Creates a new TVirtualData instance for the specified data.
+
+**Signature:**
+```pascal
+Constructor Create(var AData: T;
+                   const AVisibility: TVisibility = [mvPublic, mvPublished];
+                   const AMembers: TRttiMembers = TRttiMembers.Both;
+                   const AAncestor: Boolean = False); overload;
+```
+
+**Parameters:**
+- `AData` - Reference to the data to bind (array, list, record, or object)
+- `AVisibility` - Which member visibility levels to include (default: public and published)
+- `AMembers` - Whether to include fields, properties, or both (default: both)
+- `AAncestor` - Whether to include ancestor class members (default: false)
+
+**Example:**
+```pascal
+var
+  People: TArray<TPerson>;
+begin
+  SetLength(People, 10);
+  // Fill People array...
+  
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(People);
+end;
+```
+</ResponseField>
+
+## TBaseVirtualData Constructor (Advanced)
+
+<ResponseField name="Create" type="constructor">
+Creates a data adapter from an object's property (available only with NEWRTTI support).
+
+**Signature:**
+```pascal
+Constructor Create(const AObject: TObject;
+                   const AProperty: String;
+                   const ACount: Integer;
+                   const AVisibility: TVisibility = [mvPublic, mvPublished];
+                   const AMembers: TRttiMembers = TRttiMembers.Both;
+                   const AAncestor: Boolean = False); overload;
+```
+
+**Parameters:**
+- `AObject` - The object containing the property
+- `AProperty` - Name of the property to bind
+- `ACount` - Fixed count (for array-like properties)
+- `AVisibility` - Which member visibility levels to include
+- `AMembers` - Whether to include fields, properties, or both
+- `AAncestor` - Whether to include ancestor class members
+</ResponseField>
+
+## Types
+
+### TVisibility
+
+Set of member visibility levels:
+
+```pascal
+TVisibility = set of TMemberVisibility;
+
+// Values: mvPrivate, mvProtected, mvPublic, mvPublished
+```
+
+### TRttiMembers
+
+Specifies which RTTI members to include:
+
+```pascal
+TRttiMembers = (Both, Fields, Properties);
+```
+
+- `Both` - Include both fields and properties
+- `Fields` - Include only fields
+- `Properties` - Include only properties
+
+## Methods
+
+### AddColumns
+
+<ResponseField name="AddColumns" type="procedure">
+Automatically adds columns based on the type's RTTI information.
+
+**Signature:**
+```pascal
+procedure AddColumns(const AColumns: TColumns); override;
+```
+
+**Parameters:**
+- `AColumns` - The columns collection to populate
+</ResponseField>
+
+### AsFloat
+
+<ResponseField name="AsFloat" type="function">
+Retrieves a cell value as a floating-point number.
+
+**Signature:**
+```pascal
+function AsFloat(const AColumn: TColumn; const ARow: Integer): TFloat; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to read from
+- `ARow` - The row index
+
+**Returns:**
+The cell value as a floating-point number.
+</ResponseField>
+
+### AsString
+
+<ResponseField name="AsString" type="function">
+Retrieves a cell value as a string.
+
+**Signature:**
+```pascal
+function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to read from
+- `ARow` - The row index
+
+**Returns:**
+The string representation of the cell value.
+</ResponseField>
+
+### Count
+
+<ResponseField name="Count" type="function">
+Returns the number of rows (array/list items).
+
+**Signature:**
+```pascal
+function Count: Integer; override;
+```
+
+**Returns:**
+The number of items in the array or list.
+</ResponseField>
+
+### DataType
+
+<ResponseField name="DataType" type="function">
+Returns the RTTI type information for a column.
+
+**Signature:**
+```pascal
+function DataType(const AColumn: TColumn): PTypeInfo; override;
+```
+
+**Parameters:**
+- `AColumn` - The column to query
+
+**Returns:**
+Pointer to the type information.
+</ResponseField>
+
+### SetValue
+
+<ResponseField name="SetValue" type="procedure">
+Sets a cell value, updating the underlying array or list item.
+
+**Signature:**
+```pascal
+procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); override;
+```
+
+**Parameters:**
+- `AColumn` - The column to update
+- `ARow` - The row index
+- `AText` - The new value as a string
+</ResponseField>
+
+## Usage Examples
+
+### Binding to Arrays
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti;
+
+type
+  TPerson = record
+    Name: string;
+    Age: Integer;
+    Email: string;
+  end;
+
+var
+  MyData: TArray<TPerson>;
+begin
+  SetLength(MyData, 10);
+  
+  // Fill data
+  MyData[0].Name := 'John Doe';
+  MyData[0].Age := 30;
+  MyData[0].Email := 'john@example.com';
+  // ...
+  
+  // Bind to grid using generic class
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(MyData);
+  
+  // Or using the helper class
+  TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(MyData);
+end;
+```
+
+### Binding to TList
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti, System.Generics.Collections;
+
+type
+  TPerson = record
+    Name: string;
+    Age: Integer;
+    Salary: Double;
+  end;
+
+var
+  MyData: TList<TPerson>;
+  Person: TPerson;
+begin
+  MyData := TList<TPerson>.Create;
+  try
+    // Fill list
+    Person.Name := 'Jane Smith';
+    Person.Age := 25;
+    Person.Salary := 50000;
+    MyData.Add(Person);
+    // ...
+    
+    // Bind to grid
+    TeeGrid1.Data := TVirtualData<TList<TPerson>>.Create(MyData);
+    
+    // Or using the helper class
+    TeeGrid1.Data := TVirtualListData<TPerson>.Create(MyData);
+  finally
+    // Note: Don't free MyData while the grid is using it
+  end;
+end;
+```
+
+### Binding to Object Lists
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti, System.Generics.Collections;
+
+type
+  TPerson = class
+  public
+    Name: string;
+    Age: Integer;
+  published
+    property Email: string read FEmail write FEmail;
+  end;
+
+var
+  MyData: TObjectList<TPerson>;
+  Person: TPerson;
+begin
+  MyData := TObjectList<TPerson>.Create(True); // Owns objects
+  try
+    // Fill list
+    Person := TPerson.Create;
+    Person.Name := 'Bob Johnson';
+    Person.Age := 35;
+    Person.Email := 'bob@example.com';
+    MyData.Add(Person);
+    // ...
+    
+    // Bind to grid
+    TeeGrid1.Data := TVirtualData<TObjectList<TPerson>>.Create(MyData);
+    
+    // Or using the helper class
+    TeeGrid1.Data := TVirtualObjectListData<TPerson>.Create(MyData);
+  finally
+    // Don't free while grid is using it
+  end;
+end;
+```
+
+### Binding to Single Records
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti;
+
+type
+  TConfig = record
+    ServerName: string;
+    Port: Integer;
+    Timeout: Integer;
+    UseSSL: Boolean;
+  end;
+
+var
+  MyConfig: TConfig;
+begin
+  MyConfig.ServerName := 'localhost';
+  MyConfig.Port := 8080;
+  MyConfig.Timeout := 30;
+  MyConfig.UseSSL := True;
+  
+  // Display single record as a property grid (1 row per field)
+  TeeGrid1.Data := TVirtualData<TConfig>.Create(MyConfig);
+end;
+```
+
+### Controlling Visibility
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti;
+
+type
+  TEmployee = class
+  private
+    FInternalId: Integer;  // Won't be shown
+  public
+    Name: string;          // Will be shown
+    Department: string;    // Will be shown
+  published
+    property Salary: Double read FSalary write FSalary; // Will be shown
+  end;
+
+var
+  Employees: TObjectList<TEmployee>;
+begin
+  // Show only public and published members (default)
+  TeeGrid1.Data := TVirtualObjectListData<TEmployee>.Create(Employees);
+  
+  // Or explicitly specify visibility
+  TeeGrid1.Data := TVirtualData<TObjectList<TEmployee>>.Create(
+    Employees,
+    [mvPublic, mvPublished]  // Visibility
+  );
+end;
+```
+
+### Fields vs Properties
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti;
+
+var
+  People: TArray<TPerson>;
+begin
+  // Show only fields
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(
+    People,
+    [mvPublic, mvPublished],  // Visibility
+    TRttiMembers.Fields       // Only fields
+  );
+  
+  // Show only properties
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(
+    People,
+    [mvPublic, mvPublished],  // Visibility
+    TRttiMembers.Properties   // Only properties
+  );
+  
+  // Show both (default)
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(
+    People,
+    [mvPublic, mvPublished],  // Visibility
+    TRttiMembers.Both         // Both fields and properties
+  );
+end;
+```
+
+### 2D Arrays
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti;
+
+var
+  Grid2D: TArray<TArray<Integer>>;
+  Row: TArray<Integer>;
+  i, j: Integer;
+begin
+  // Create 10x5 grid
+  SetLength(Grid2D, 10);
+  for i := 0 to 9 do
+  begin
+    SetLength(Grid2D[i], 5);
+    for j := 0 to 4 do
+      Grid2D[i][j] := i * 10 + j;
+  end;
+  
+  // Bind to TeeGrid
+  TeeGrid1.Data := TVirtualArray2DData<Integer>.Create(Grid2D);
+end;
+```
+
+### Including Ancestor Members
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Rtti;
+
+type
+  TBaseEntity = class
+  public
+    Id: Integer;
+    CreatedDate: TDateTime;
+  end;
+  
+  TCustomer = class(TBaseEntity)
+  public
+    Name: string;
+    Email: string;
+  end;
+
+var
+  Customers: TObjectList<TCustomer>;
+begin
+  // Include ancestor fields (Id, CreatedDate)
+  TeeGrid1.Data := TVirtualData<TObjectList<TCustomer>>.Create(
+    Customers,
+    [mvPublic, mvPublished],  // Visibility
+    TRttiMembers.Both,        // Fields and properties
+    True                      // Include ancestor members
+  );
+end;
+```
+
+## Type Support
+
+The RTTI data adapters automatically handle these types:
+
+- **Numeric types**: Integer, Int64, Single, Double, Currency
+- **String types**: string, AnsiString, WideString
+- **Boolean types**: Boolean, ByteBool, WordBool, LongBool
+- **Date/Time types**: TDate, TTime, TDateTime
+- **Enumerated types**: Displayed as their string names
+- **Set types**: Displayed as comma-separated values
+
+## Performance Considerations
+
+<Warning>
+RTTI-based binding uses reflection, which has some performance overhead. For extremely large datasets (100,000+ rows) with frequent updates, consider using custom virtual data classes instead.
+</Warning>
+
+However, for most applications with datasets under 50,000 rows, the performance is excellent and the convenience is worth it.
+
+## See Also
+
+- [TVirtualData](/api/virtualdata) - Base virtual data class
+- [TVirtualDBData](/api/virtualdbdata) - Database adapter
+- [Arrays and Lists Guide](/data/arrays-and-lists) - Complete guide to binding arrays and lists
+- [Custom Virtual Data](/data/custom-virtual-data) - Creating custom adapters

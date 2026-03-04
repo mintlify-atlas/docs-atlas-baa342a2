@@ -1,0 +1,409 @@
+---
+title: "Virtual Mode Example"
+description: "Use pure virtual mode for maximum control over data retrieval and storage"
+---
+
+## Overview
+
+Virtual Mode allows you to supply grid data through events without storing it in memory. This is perfect for:
+- Very large datasets that don't fit in memory
+- Data from external sources (files, network, databases)
+- Calculated or generated data
+- Maximum performance with minimal memory usage
+
+## Basic Virtual Mode
+
+### Setting Up Virtual Data
+
+```pascal
+uses
+  Tee.GridData.Strings;
+
+var
+  Data: TVirtualModeData;
+
+procedure TFormVirtualMode.FormCreate(Sender: TObject);
+var
+  t: Integer;
+begin
+  // Create virtual data: 10 columns, 20,000 rows, default column width 60
+  Data := TVirtualModeData.Create(10, 20000, 60);
+  
+  // Set column headers
+  for t := 0 to Data.Columns - 1 do
+    Data.Headers[t] := IntToStr(t);
+  
+  // Connect events
+  Data.OnGetValue := GetCell;
+  Data.OnSetValue := SetCell;
+  
+  // Assign to grid
+  TeeGrid1.Data := Data;
+end;
+```
+
+### OnGetValue Event
+
+Called when the grid needs to display a cell:
+
+```pascal
+procedure TFormVirtualMode.GetCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Return value from your data source
+  // In this example, just calculate it:
+  AValue := IntToStr(Data.IndexOf(AColumn)) + ' x ' + IntToStr(ARow);
+  
+  // In real applications, you might:
+  // - Read from a file
+  // - Query a database
+  // - Calculate from other data
+  // - Fetch from network
+end;
+```
+
+### OnSetValue Event
+
+Called when a cell is edited:
+
+```pascal
+procedure TFormVirtualMode.SetCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Store the new value in your data source
+  // For example:
+  // - Write to file
+  // - Update database
+  // - Store in external data structure
+  
+  // In this example, we don't store anything
+end;
+```
+
+## Complete Example
+
+From `Unit_VirtualMode.pas`:
+
+```pascal
+unit Unit_VirtualMode;
+
+interface
+
+uses
+  System.SysUtils, FMX.Forms,
+  FMXTee.Control, FMXTee.Grid,
+  Tee.GridData.Strings, Tee.Grid.Columns;
+
+type
+  TFormVirtualMode = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  private
+    Data: TVirtualModeData;
+    procedure GetCell(Sender: TObject; const AColumn: TColumn;
+      const ARow: Integer; var AValue: String);
+    procedure SetCell(Sender: TObject; const AColumn: TColumn;
+      const ARow: Integer; var AValue: String);
+  end;
+
+implementation
+
+uses
+  Tee.Grid.Rows, Tee.Format, System.UIConsts;
+
+procedure TFormVirtualMode.FormCreate(Sender: TObject);
+var
+  t: Integer;
+  row: TRow;
+  fontstyles: TFontStyles;
+begin
+  // Create data with optional default column width (60)
+  // This is much faster because grid doesn't need to calculate width
+  Data := TVirtualModeData.Create(10, 20000, 60);
+  
+  // Column headers
+  for t := 0 to Data.Columns - 1 do
+    Data.Headers[t] := IntToStr(t);
+  
+  // Virtual mode events
+  Data.OnGetValue := GetCell;
+  Data.OnSetValue := SetCell;
+  
+  // Set data to grid
+  TeeGrid1.Data := Data;
+  
+  // Custom formatting examples:
+  fontstyles := [TFontStyle.fsBold, TFontStyle.fsStrikeOut];
+  
+  // Format entire row 7
+  row := TeeGrid1.Rows.Items.AddRow(7);
+  row.Format.Brush.Color := TColors.Red;
+  row.Format.Font.Color := claWhite;
+  row.Format.Brush.Show();
+  
+  // Format specific cell [10, 8]
+  TeeGrid1.CellFormat.AddCell(10, 8);
+  TeeGrid1.CellFormat.Cell[10, 8].Format.Brush.Color := TColors.Mediumslateblue;
+  TeeGrid1.CellFormat.Cell[10, 8].Format.Brush.Show();
+  
+  // Format specific cell [3, 4]
+  TeeGrid1.CellFormat.AddCell(3, 4);
+  TeeGrid1.CellFormat.Cell[3, 4].Format.Brush.Color := TColors.Green;
+  TeeGrid1.CellFormat.Cell[3, 4].Format.Font.Color := claYellow;
+  TeeGrid1.CellFormat.Cell[3, 4].Format.Brush.Show();
+  
+  // Format entire row 5
+  TeeGrid1.Rows.Items[5].Format.Brush.Show();
+  TeeGrid1.Rows.Items[5].Format.Font.Style := fontstyles;
+  TeeGrid1.Rows.Items[5].Format.Brush.Color := TColors.CornflowerBlue;
+  TeeGrid1.Rows.Items[5].Format.Font.Color := claDarkblue;
+end;
+
+procedure TFormVirtualMode.GetCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Return value for this cell
+  AValue := IntToStr(Data.IndexOf(AColumn)) + ' x ' + IntToStr(ARow);
+end;
+
+procedure TFormVirtualMode.SetCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Called when cell is edited
+  // Store the new AValue in your data source
+end;
+
+end.
+```
+
+## Performance Optimization
+
+### Default Column Width
+
+```pascal
+// Passing a default column width prevents grid from calculating it
+// Much faster for large datasets
+Data := TVirtualModeData.Create(
+  ColumnCount,
+  RowCount,
+  60  // Default column width in pixels
+);
+```
+
+### Caching Strategies
+
+For expensive data retrieval, implement caching:
+
+```pascal
+type
+  TCellCache = TDictionary<string, string>;
+
+var
+  Cache: TCellCache;
+
+procedure GetCellWithCache(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+var
+  Key: string;
+begin
+  Key := Format('%d,%d', [Data.IndexOf(AColumn), ARow]);
+  
+  if not Cache.TryGetValue(Key, AValue) then
+  begin
+    // Calculate or fetch value
+    AValue := ExpensiveDataRetrieval(AColumn, ARow);
+    Cache.Add(Key, AValue);
+  end;
+end;
+```
+
+## Custom Cell Formatting
+
+### Format Individual Cells
+
+```pascal
+// Add a cell to the format list
+TeeGrid1.CellFormat.AddCell(Column, Row);
+
+// Apply formatting
+TeeGrid1.CellFormat.Cell[Column, Row].Format.Brush.Color := clYellow;
+TeeGrid1.CellFormat.Cell[Column, Row].Format.Font.Style := [fsBold];
+TeeGrid1.CellFormat.Cell[Column, Row].Format.Brush.Show();
+```
+
+### Format Entire Rows
+
+```pascal
+var
+  row: TRow;
+begin
+  row := TeeGrid1.Rows.Items.AddRow(RowIndex);
+  row.Format.Brush.Color := TColors.LightBlue;
+  row.Format.Font.Color := TColors.Navy;
+  row.Format.Brush.Show();
+end;
+
+// Or access existing row
+TeeGrid1.Rows.Items[RowIndex].Format.Brush.Color := clRed;
+```
+
+## Real-World Examples
+
+### File-Based Data
+
+```pascal
+procedure GetCellFromFile(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+var
+  F: TextFile;
+  Line: string;
+  Lines: TStringList;
+begin
+  // Read from file (implement caching for performance!)
+  AssignFile(F, 'data.txt');
+  Reset(F);
+  try
+    Lines := TStringList.Create;
+    try
+      while not Eof(F) do
+      begin
+        ReadLn(F, Line);
+        Lines.Add(Line);
+      end;
+      
+      if ARow < Lines.Count then
+      begin
+        var Fields := Lines[ARow].Split([',']);
+        var ColIndex := Data.IndexOf(AColumn);
+        if ColIndex < Length(Fields) then
+          AValue := Fields[ColIndex];
+      end;
+    finally
+      Lines.Free;
+    end;
+  finally
+    CloseFile(F);
+  end;
+end;
+```
+
+### Database Query
+
+```pascal
+procedure GetCellFromDatabase(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Use a pre-positioned dataset or query with row offset
+  Query.Close;
+  Query.SQL.Text := Format(
+    'SELECT * FROM Table LIMIT 1 OFFSET %d',
+    [ARow]
+  );
+  Query.Open;
+  
+  if not Query.Eof then
+    AValue := Query.FieldByName(AColumn.Header.Text).AsString;
+end;
+```
+
+<Warning>
+  The above database example is inefficient. For database data, use [Database Grid](/examples/database-grid) instead, which properly uses dataset cursors.
+</Warning>
+
+### Generated Data
+
+```pascal
+procedure GetCalculatedCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+var
+  ColIndex: Integer;
+begin
+  ColIndex := Data.IndexOf(AColumn);
+  
+  // Generate mathematical data
+  case ColIndex of
+    0: AValue := IntToStr(ARow);  // Row number
+    1: AValue := IntToStr(ARow * ARow);  // Square
+    2: AValue := FloatToStr(Sqrt(ARow));  // Square root
+    3: AValue := IntToStr(ARow * 2);  // Double
+  end;
+end;
+```
+
+## Key Concepts
+
+### Virtual Rendering
+
+TeeGrid only calls OnGetValue for visible cells:
+- Scrolling automatically triggers OnGetValue for newly visible cells
+- No need to pre-load all data
+- Memory usage is constant regardless of row count
+
+### Event Timing
+
+- **OnGetValue**: Called for display, sorting, searching
+- **OnSetValue**: Called when user edits a cell
+
+Both events are called on-demand, not in advance.
+
+### Column Width
+
+If you don't provide a default width:
+```pascal
+Data := TVirtualModeData.Create(10, 20000);  // No width specified
+```
+The grid will call OnGetValue for all rows to calculate optimal width. For 20,000 rows, this is slow!
+
+## Advantages
+
+1. **Memory Efficient**: Only visible data is in memory
+2. **Fast Startup**: No need to load all data upfront
+3. **Unlimited Rows**: Can handle millions of rows
+4. **Flexible**: Data can come from anywhere
+5. **Real-time**: Data can change between calls
+
+## Limitations
+
+1. **No Automatic Sorting**: You must implement sort logic
+2. **No Built-in Search**: Implement your own search
+3. **Caching Required**: For expensive data sources
+4. **Width Calculation**: Provide default width or it calculates from all rows
+
+## Best Practices
+
+1. **Always provide default column width** for large datasets
+2. **Implement caching** for expensive data retrieval
+3. **Use for truly large datasets** (10,000+ rows)
+4. **For databases**, use [Database Grid](/examples/database-grid) instead
+5. **Test performance** with representative data
+
+## When to Use Virtual Mode
+
+### Use Virtual Mode When:
+- Dataset doesn't fit in memory
+- Data is calculated/generated
+- Reading from files or streams
+- Need maximum performance with millions of rows
+
+### Use Database Grid When:
+- Data comes from TDataSet
+- Need sorting and filtering
+- Dataset fits in memory
+- Want automatic updates
+
+### Use Array/List Binding When:
+- Data is already in memory as collections
+- Need automatic column generation via RTTI
+- Dataset is reasonably sized (&lt;10,000 rows)
+
+## Next Steps
+
+- Learn about [Performance](/examples/performance) optimization
+- Explore [Database Grid](/examples/database-grid) for database data
+- See [Array Binding](/examples/array-binding) for in-memory data
+
+## Related Examples
+
+- [Performance](/examples/performance)
+- [Database Grid](/examples/database-grid)
+- [Array Binding](/examples/array-binding)

@@ -1,0 +1,344 @@
+---
+title: "TRows"
+description: "Grid band class that paints multiple rows of column cells"
+---
+
+## Overview
+
+`TRows` is a grid band class that paints multiple rows of column cells. It includes support for hierarchical "rows-inside-rows" through the `Children` property, enabling master-detail row structures.
+
+## Key Properties
+
+<ParamField path="Height" type="TCoordinate">
+  Default height for all rows in pixels. Individual row heights can be overridden using the `Heights` property.
+  
+  ```pascal
+  Grid.Rows.Height.Value := 25; // 25 pixels per row
+  ```
+</ParamField>
+
+<ParamField path="Heights[Index]" type="Single">
+  Individual height for a specific row. Allows different rows to have different heights.
+  
+  ```pascal
+  Grid.Rows.Heights[0] := 30;  // First row 30 pixels
+  Grid.Rows.Heights[1] := 20;  // Second row 20 pixels
+  ```
+</ParamField>
+
+<ParamField path="Spacing" type="TCoordinate">
+  Vertical spacing between rows in pixels.
+  
+  ```pascal
+  Grid.Rows.Spacing.Value := 2; // 2 pixels between rows
+  ```
+</ParamField>
+
+<ParamField path="Back" type="TFormat">
+  Background formatting for all rows. Defines the default background color, gradient, and other visual properties.
+  
+  ```pascal
+  Grid.Rows.Back.Brush.Color := clWhite;
+  ```
+</ParamField>
+
+<ParamField path="Alternate" type="TAlternateFormat">
+  Formatting properties for odd-numbered rows. Enables alternating row colors for better readability.
+  
+  ```pascal
+  Grid.Rows.Alternate.Visible := True;
+  Grid.Rows.Alternate.Brush.Color := clSilver;
+  ```
+</ParamField>
+
+<ParamField path="RowLines" type="TStroke">
+  Stroke properties for horizontal lines between rows.
+  
+  ```pascal
+  Grid.Rows.RowLines.Visible := True;
+  Grid.Rows.RowLines.Color := clGray;
+  Grid.Rows.RowLines.Width := 1;
+  ```
+</ParamField>
+
+<ParamField path="Hover" type="TCellHover">
+  Selection and formatting properties for the cell under the mouse cursor.
+  
+  ```pascal
+  Grid.Rows.Hover.Visible := True;
+  Grid.Rows.Hover.Format.Brush.Color := clYellow;
+  ```
+</ParamField>
+
+<ParamField path="Data" type="TVirtualData">
+  The data source for the rows. Must be assigned to display data in the grid.
+  
+  ```pascal
+  Grid.Rows.Data := MyVirtualData;
+  ```
+</ParamField>
+
+<ParamField path="Children" type="TRowsBands">
+  Collection of optional sub-rows for each row. Enables hierarchical row structures.
+  
+  ```pascal
+  var
+    SubRow: TGridBand;
+  begin
+    SubRow := Grid.Rows.Children.Add;
+    // Configure sub-row
+  end;
+  ```
+</ParamField>
+
+<ParamField path="SubBands" type="TRowsBands">
+  Collection of additional bands that can be displayed for each row.
+</ParamField>
+
+<ParamField path="VisibleColumns" type="TVisibleColumns">
+  Internal property containing an array of all visible columns. Used for rendering.
+</ParamField>
+
+<ParamField path="YSpacing" type="Single">
+  Calculated vertical spacing value used internally for rendering.
+</ParamField>
+
+## Key Methods
+
+<ParamField path="HeightOf(ARow)" type="Single">
+  Returns the height of the specified row, taking into account custom heights or the default height.
+  
+  ```pascal
+  var
+    H: Single;
+  begin
+    H := Grid.Rows.HeightOf(5); // Height of row 5
+  end;
+  ```
+</ParamField>
+
+<ParamField path="TopOf(ARow)" type="Single">
+  Returns the Y coordinate of the top edge of the specified row.
+  
+  ```pascal
+  var
+    Y: Single;
+  begin
+    Y := Grid.Rows.TopOf(10); // Top position of row 10
+  end;
+  ```
+</ParamField>
+
+<ParamField path="BottomOf(ARow)" type="Single">
+  Returns the Y coordinate of the bottom edge of the specified row.
+  
+  ```pascal
+  var
+    Y: Single;
+  begin
+    Y := Grid.Rows.BottomOf(10); // Bottom position of row 10
+  end;
+  ```
+</ParamField>
+
+<ParamField path="RowAt(Y, AvailableHeight)" type="Integer">
+  Returns the row index at the specified Y coordinate, or -1 if no row is found.
+  
+  ```pascal
+  var
+    RowIndex: Integer;
+  begin
+    RowIndex := Grid.Rows.RowAt(100, Grid.Height);
+  end;
+  ```
+</ParamField>
+
+<ParamField path="FirstVisible(AOffset)" type="Integer">
+  Returns the index of the first visible row, optionally offset by the specified amount.
+  
+  ```pascal
+  var
+    FirstRow: Integer;
+  begin
+    FirstRow := Grid.Rows.FirstVisible(Grid.Rows.Scroll.Y);
+  end;
+  ```
+</ParamField>
+
+<ParamField path="AutoHeight(ARow)" type="Single">
+  Calculates the automatic height for the specified row based on cell content.
+  
+  ```pascal
+  var
+    H: Single;
+  begin
+    H := Grid.Rows.AutoHeight(5);
+    Grid.Rows.Heights[5] := H;
+  end;
+  ```
+</ParamField>
+
+<ParamField path="AllHeightsEqual" type="Boolean">
+  Returns `true` if all rows have the same height.
+</ParamField>
+
+<ParamField path="Empty" type="Boolean">
+  Returns `true` if there are no rows to display (data is empty).
+</ParamField>
+
+<ParamField path="MaxBottom" type="Single">
+  Returns the Y coordinate of the bottom of the last row.
+</ParamField>
+
+<ParamField path="CalcDefaultHeight">
+  Calculates and sets the default row height based on font size and cell formatting.
+  
+  ```pascal
+  Grid.Rows.CalcDefaultHeight;
+  ```
+</ParamField>
+
+<ParamField path="Clear">
+  Clears all row-specific data and resets to initial state.
+  
+  ```pascal
+  Grid.Rows.Clear;
+  ```
+</ParamField>
+
+<ParamField path="Swap(A, B)">
+  Swaps two rows at the specified indices.
+  
+  ```pascal
+  Grid.Rows.Swap(0, 5); // Swap first and sixth rows
+  ```
+</ParamField>
+
+## Usage Examples
+
+### Basic Row Configuration
+
+```pascal
+begin
+  // Set default row height
+  Grid.Rows.Height.Value := 30;
+  
+  // Configure row spacing
+  Grid.Rows.Spacing.Value := 1;
+  
+  // Enable row lines
+  Grid.Rows.RowLines.Visible := True;
+  Grid.Rows.RowLines.Color := clSilver;
+end;
+```
+
+### Alternating Row Colors
+
+```pascal
+begin
+  // Set default row background
+  Grid.Rows.Back.Brush.Color := clWhite;
+  
+  // Configure alternate row formatting
+  Grid.Rows.Alternate.Visible := True;
+  Grid.Rows.Alternate.Brush.Color := RGB(240, 240, 240);
+end;
+```
+
+### Custom Row Heights
+
+```pascal
+var
+  i: Integer;
+begin
+  // Set individual row heights
+  for i := 0 to Grid.Rows.Data.Count - 1 do
+  begin
+    if i mod 3 = 0 then
+      Grid.Rows.Heights[i] := 40  // Every third row is taller
+    else
+      Grid.Rows.Heights[i] := 25;
+  end;
+end;
+```
+
+### Auto-Height Rows
+
+```pascal
+var
+  i: Integer;
+  H: Single;
+begin
+  // Calculate automatic height for each row
+  for i := 0 to Grid.Rows.Data.Count - 1 do
+  begin
+    H := Grid.Rows.AutoHeight(i);
+    Grid.Rows.Heights[i] := H;
+  end;
+end;
+```
+
+### Row Hover Effect
+
+```pascal
+begin
+  // Enable hover highlighting
+  Grid.Rows.Hover.Visible := True;
+  Grid.Rows.Hover.Format.Brush.Color := clYellow;
+  Grid.Rows.Hover.Format.Transparency := 128; // Semi-transparent
+end;
+```
+
+### Finding Rows
+
+```pascal
+var
+  RowIndex: Integer;
+  Y: Single;
+begin
+  // Find row at mouse position
+  RowIndex := Grid.Rows.RowAt(Mouse.Y, Grid.Height);
+  if RowIndex >= 0 then
+  begin
+    // Get row position
+    Y := Grid.Rows.TopOf(RowIndex);
+    ShowMessage(Format('Row %d at Y=%g', [RowIndex, Y]));
+  end;
+end;
+```
+
+### Hierarchical Rows
+
+```pascal
+var
+  DetailBand: TGridBand;
+begin
+  // Add sub-rows (detail rows)
+  DetailBand := Grid.Rows.Children.Add;
+  DetailBand.Height.Value := 20;
+  
+  // Check if children are visible for a specific row
+  if Grid.Rows.IsChildrenVisible(nil, 5) then
+    ShowMessage('Row 5 has visible children');
+end;
+```
+
+## Scrolling
+
+The `TRows` class includes scroll support:
+
+```pascal
+begin
+  // Access scroll position
+  ShowMessage('Vertical scroll: ' + FloatToStr(Grid.Rows.Scroll.Y));
+  
+  // Get first visible row after scrolling
+  var FirstRow := Grid.Rows.FirstVisible(Grid.Rows.Scroll.Y);
+end;
+```
+
+## Related Classes
+
+- [TColumn](/api/tcolumn) - Column class
+- [TColumns](/api/tcolumns) - Columns collection
+- [TRowGroup](/api/trowgroup) - Row group with headers and footers

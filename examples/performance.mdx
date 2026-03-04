@@ -1,0 +1,503 @@
+---
+title: "Performance Example"
+description: "Optimize TeeGrid for maximum rendering speed and responsiveness"
+---
+
+## Overview
+
+TeeGrid is highly optimized for performance, but there are several techniques to maximize speed, especially with large datasets or complex formatting.
+
+## Rendering Engines
+
+TeeGrid supports multiple rendering engines with different performance characteristics.
+
+### GDI+ (Default)
+
+```pascal
+uses
+  VCLTee.Painter.GdiPlus;
+
+procedure UseGDIPlus;
+begin
+  TeeGrid1.Painter := TGdiPlusPainter.Create;
+  
+  // Optional: Enable/disable anti-aliasing
+  TGdiPlusPainter(TeeGrid1.Painter).AntiAlias := True;
+end;
+```
+
+### GDI (Fastest)
+
+```pascal
+uses
+  VCLTee.Painter;
+
+procedure UseGDI;
+begin
+  // GDI is faster but doesn't support anti-aliasing
+  TeeGrid1.Painter := TGdiPainter.Create(TeeGrid1.Canvas);
+end;
+```
+
+### Skia (RAD Studio 12+)
+
+```pascal
+uses
+  VCLTee.Painter.Skia;
+
+procedure UseSkia;
+begin
+  TeeGrid1.Painter := TSkiaPainter.Create;
+  
+  // Optional: Enable/disable anti-aliasing
+  TSkiaPainter(TeeGrid1.Painter).AntiAlias := True;
+end;
+```
+
+## Performance Benchmark Demo
+
+From `Unit_Test_Speed.pas`:
+
+```pascal
+unit Unit_Test_Speed;
+
+interface
+
+uses
+  Vcl.Forms, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  VCLTee.Control, VCLTee.Grid;
+
+type
+  TFormSpeed = class(TForm)
+    TeeGrid1: TTeeGrid;
+    Button1: TButton;
+    LabelResult: TLabel;
+    ComboGraphics: TComboBox;
+    CBAntiAlias: TCheckBox;
+    CBFormatting: TCheckBox;
+    TrackBar1: TTrackBar;
+    procedure FormCreate(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure ComboGraphicsChange(Sender: TObject);
+    procedure CBAntiAliasClick(Sender: TObject);
+    procedure CBFormattingClick(Sender: TObject);
+    procedure TrackBar1Change(Sender: TObject);
+  private
+    procedure ClearCosmetics;
+    procedure RunBenchmark;
+    procedure SetCosmetics;
+  end;
+
+implementation
+
+uses
+  System.Diagnostics, Tee.GridData.Strings, Tee.Grid.Columns,
+  Tee.Painter, Tee.Format,
+  VCLTee.Painter, VCLTee.Painter.GdiPlus;
+
+// Create sample data
+function Sample_Data: TStringsData;
+var
+  Row, Column: Integer;
+begin
+  result := TStringsData.Create(20, 100);
+  
+  // Fill data
+  for Row := 0 to result.Rows - 1 do
+  begin
+    result[0, Row] := IntToStr(Row);
+    for Column := 1 to result.Columns - 1 do
+      result[Column, Row] := IntToStr(Column);
+  end;
+  
+  // Headers
+  result.Headers[0] := 'Row';
+  for Column := 1 to result.Columns - 1 do
+    result.Headers[Column] := 'Col' + IntToStr(Column);
+end;
+
+procedure TFormSpeed.FormCreate(Sender: TObject);
+begin
+  TeeGrid1.Data := Sample_Data;
+  SetCosmetics;
+end;
+
+// Switch rendering engine
+procedure TFormSpeed.ComboGraphicsChange(Sender: TObject);
+begin
+  case ComboGraphics.ItemIndex of
+    0: TeeGrid1.Painter := TGdiPlusPainter.Create;
+    1: TeeGrid1.Painter := TGdiPainter.Create(TeeGrid1.Canvas);
+    // 2: TeeGrid1.Painter := TSkiaPainter.Create;  // RAD 12+
+  end;
+  
+  CBAntiAlias.Enabled := not (TeeGrid1.Painter is TGdiPainter);
+end;
+
+procedure TFormSpeed.CBAntiAliasClick(Sender: TObject);
+begin
+  if TeeGrid1.Painter is TGdiPlusPainter then
+    TGdiPlusPainter(TeeGrid1.Painter).AntiAlias := CBAntiAlias.Checked;
+end;
+
+procedure TFormSpeed.CBFormattingClick(Sender: TObject);
+begin
+  if CBFormatting.Checked then
+    SetCosmetics
+  else
+    ClearCosmetics;
+end;
+
+procedure TFormSpeed.TrackBar1Change(Sender: TObject);
+begin
+  TeeGrid1.Rows.Spacing.Value := TrackBar1.Position;
+end;
+
+procedure TFormSpeed.SetCosmetics;
+begin
+  // Text alignment
+  TeeGrid1.Columns[2].TextAlignment := TColumnTextAlign.Custom;
+  TeeGrid1.Columns[2].TextAlign.Horizontal := THorizontalAlign.Center;
+  
+  TeeGrid1.Columns[3].TextAlignment := TColumnTextAlign.Custom;
+  TeeGrid1.Columns[3].TextAlign.Horizontal := THorizontalAlign.Right;
+  
+  // Font styles
+  TeeGrid1.Columns[4].ParentFormat := False;
+  TeeGrid1.Columns[4].Format.Font.Style := [TFontStyle.fsBold];
+  
+  TeeGrid1.Columns[5].ParentFormat := False;
+  TeeGrid1.Columns[5].Format.Font.Style := [TFontStyle.fsItalic];
+  
+  // Background color
+  TeeGrid1.Columns[8].ParentFormat := False;
+  TeeGrid1.Columns[8].Format.Brush.Show;
+  TeeGrid1.Columns[8].Format.Brush.Color := clWebBisque;
+  
+  // Font color
+  TeeGrid1.Columns[9].ParentFormat := False;
+  TeeGrid1.Columns[9].Format.Font.Color := clBlue;
+  
+  // Custom row height
+  TeeGrid1.Rows.Heights[20] := 40;
+end;
+
+procedure TFormSpeed.ClearCosmetics;
+var
+  Column: TColumn;
+begin
+  for Column in TeeGrid1.Columns do
+  begin
+    Column.ParentFormat := True;
+    Column.TextAlignment := TColumnTextAlign.Automatic;
+  end;
+  
+  TeeGrid1.Rows.ResetHeights;
+end;
+
+// Benchmark: scroll through all cells
+procedure TFormSpeed.RunBenchmark;
+var
+  Row: Integer;
+  Column: TColumn;
+begin
+  for Row := 0 to TeeGrid1.Data.Count - 1 do
+    for Column in TeeGrid1.Columns do
+    begin
+      TeeGrid1.Selected.Column := Column;
+      TeeGrid1.Selected.Row := Row;
+    end;
+end;
+
+procedure TFormSpeed.Button1Click(Sender: TObject);
+var
+  t1: TStopwatch;
+begin
+  ComboGraphics.Enabled := False;
+  try
+    TeeGrid1.SetFocus;
+    
+    t1 := TStopwatch.StartNew;
+    RunBenchmark;
+    
+    LabelResult.Caption := 'Time: ' + IntToStr(t1.ElapsedMilliseconds) + ' msec';
+  finally
+    ComboGraphics.Enabled := True;
+  end;
+end;
+
+end.
+```
+
+## Performance Optimization Techniques
+
+### 1. Use GDI for Maximum Speed
+
+```pascal
+// Fastest rendering, no anti-aliasing
+TeeGrid1.Painter := TGdiPainter.Create(TeeGrid1.Canvas);
+```
+
+### 2. Disable Anti-Aliasing
+
+```pascal
+if TeeGrid1.Painter is TGdiPlusPainter then
+  TGdiPlusPainter(TeeGrid1.Painter).AntiAlias := False;
+```
+
+### 3. Minimize Custom Formatting
+
+```pascal
+// Each custom format requires additional processing
+// Avoid per-cell formatting for large datasets
+
+// Good: Column-level formatting
+TeeGrid1.Columns[0].Format.Font.Style := [fsBold];
+
+// Slower: Cell-level formatting (use sparingly)
+TeeGrid1.CellFormat.AddCell(10, 20);
+TeeGrid1.CellFormat.Cell[10, 20].Format.Brush.Color := clYellow;
+```
+
+### 4. Reduce Row Spacing
+
+```pascal
+// More compact = fewer rows visible = faster rendering
+TeeGrid1.Rows.Spacing.Value := 0;
+```
+
+### 5. Disable Automatic Row Heights
+
+```pascal
+// Much faster for large datasets
+TeeGrid1.Rows.Height.Automatic := False;
+TeeGrid1.Rows.Height.Value := 24;  // Fixed height
+```
+
+### 6. Use Virtual Mode with Default Width
+
+```pascal
+uses
+  Tee.GridData.Strings;
+
+// Specify default column width to avoid calculation
+Data := TVirtualModeData.Create(
+  ColumnCount,
+  RowCount,
+  60  // Default width - prevents OnGetValue calls for width calculation
+);
+```
+
+### 7. Reduce Mouse Activity
+
+```pascal
+uses
+  Tee.Grid;
+
+// Only respond to mouse down/up, not move
+TeeGrid1.Grid.MouseActivity := [TGridMouseSense.Down, TGridMouseSense.Up];
+```
+
+### 8. Disable Grid Lines
+
+```pascal
+// Slightly faster without grid lines
+TeeGrid1.Rows.RowLines.Hide;
+TeeGrid1.Columns.Visible.Lines := False;
+```
+
+### 9. Batch Updates
+
+```pascal
+// Disable repaints during updates
+TeeGrid1.BeginUpdate;
+try
+  // Make many changes
+  for i := 0 to 100 do
+    TeeGrid1.Columns[i].Width.Value := 50;
+finally
+  TeeGrid1.EndUpdate;  // Single repaint
+end;
+```
+
+### 10. Database Performance
+
+```pascal
+uses
+  Data.DB;
+
+// Disable controls during bulk operations
+ClientDataSet1.DisableControls;
+try
+  // Add many records
+  for i := 1 to 10000 do
+    ClientDataSet1.AppendRecord([...]);
+finally
+  ClientDataSet1.EnableControls;
+end;
+```
+
+## Large Dataset Strategies
+
+### Virtual Data for Millions of Rows
+
+```pascal
+uses
+  Tee.GridData.Strings;
+
+// Can handle millions of rows efficiently
+Data := TVirtualModeData.Create(100, 1000000, 60);
+Data.OnGetValue := GetValue;
+TeeGrid1.Data := Data;
+```
+
+### Database Paging
+
+```pascal
+// Instead of loading all rows, use paging
+Query.SQL.Text := 'SELECT * FROM LargeTable LIMIT 1000';
+Query.Open;
+TeeGrid1.DataSource := Query;
+
+// Implement load-more functionality
+```
+
+### Lazy Loading
+
+```pascal
+// Load detail data only when needed
+procedure GetDetailData(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Data loaded on demand when row is expanded
+  AData := LoadDetailData(ARow);
+end;
+```
+
+## Benchmarking
+
+### Measure Rendering Performance
+
+```pascal
+uses
+  System.Diagnostics;
+
+procedure BenchmarkRendering;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  
+  // Force full repaint
+  TeeGrid1.Invalidate;
+  Application.ProcessMessages;
+  
+  ShowMessage(Format('Render time: %d ms', [sw.ElapsedMilliseconds]));
+end;
+```
+
+### Measure Scrolling Performance
+
+```pascal
+procedure BenchmarkScrolling;
+var
+  sw: TStopwatch;
+  i: Integer;
+begin
+  sw := TStopwatch.StartNew;
+  
+  for i := 0 to TeeGrid1.Data.Count - 1 do
+  begin
+    TeeGrid1.Selected.Row := i;
+    Application.ProcessMessages;
+  end;
+  
+  ShowMessage(Format('Scroll time: %d ms', [sw.ElapsedMilliseconds]));
+end;
+```
+
+## Performance Comparison
+
+Typical rendering times for 20 columns x 100 rows:
+
+| Configuration | Time (ms) | Notes |
+|--------------|-----------|-------|
+| GDI, no formatting | ~50 | Fastest |
+| GDI+, no AA, no formatting | ~80 | Good balance |
+| GDI+ with AA | ~120 | Smooth appearance |
+| GDI+ with AA + formatting | ~200 | Custom styles |
+| Skia with AA | ~100 | Modern rendering |
+
+<Info>
+  Actual performance depends on hardware, data complexity, and formatting.
+</Info>
+
+## Memory Optimization
+
+### Use Virtual Mode
+
+```pascal
+// Constant memory usage regardless of row count
+Data := TVirtualModeData.Create(10, 10000000);  // 10M rows!
+```
+
+### Free Unused Resources
+
+```pascal
+procedure TForm1.FormDestroy(Sender: TObject);
+begin
+  // Free data if manually created
+  if Data <> nil then
+    Data.Free;
+  
+  // Clear grid
+  TeeGrid1.Data := nil;
+end;
+```
+
+### Avoid Memory Leaks
+
+```pascal
+// Bad: Memory leak
+TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(MyArray);
+TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(OtherArray);  // Leaks first data!
+
+// Good: Free old data first
+if TeeGrid1.Data <> nil then
+  TeeGrid1.Data.Free;
+TeeGrid1.Data := TVirtualArrayData<TPerson>.Create(MyArray);
+```
+
+## Best Practices Summary
+
+1. **Choose the right renderer** for your needs (GDI for speed, GDI+/Skia for quality)
+2. **Disable anti-aliasing** unless smooth text is critical
+3. **Use fixed row heights** when possible
+4. **Minimize custom formatting** for large datasets
+5. **Specify default column width** in virtual mode
+6. **Use virtual rendering** for very large datasets
+7. **Batch updates** to avoid multiple repaints
+8. **Disable mouse move events** if not needed
+9. **Profile your application** to find bottlenecks
+10. **Test with realistic data** volumes
+
+## When Performance Matters Most
+
+- Datasets with 10,000+ rows
+- Real-time data updates
+- Embedded/mobile devices
+- Remote desktop scenarios
+- Older hardware
+- Complex custom rendering
+
+## Next Steps
+
+- Explore [Virtual Mode](/examples/virtual-mode) for large datasets
+- Learn about [Database Grid](/examples/database-grid) optimization
+- See [Themes](/examples/themes) for appearance customization
+
+## Related Examples
+
+- [Virtual Mode](/examples/virtual-mode)
+- [Database Grid](/examples/database-grid)
+- [Basic Grid](/examples/basic-grid)

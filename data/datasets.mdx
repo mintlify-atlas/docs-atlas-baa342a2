@@ -1,0 +1,264 @@
+---
+title: "DataSet Binding"
+description: "Connect TeeGrid to TDataSet and TDataSource components for database-backed grids"
+---
+
+## Overview
+
+TeeGrid provides seamless integration with Delphi's database components through the `TVirtualDBData` class. You can connect to any `TDataSet` or `TDataSource` component to display and edit database records in a grid.
+
+<Info>
+Setting the `DataSource` property automatically creates a `TVirtualDBData` instance — no manual setup required.
+</Info>
+
+## Quick Start
+
+The simplest way to bind a dataset is to assign it directly to the grid's `DataSource` property:
+
+```pascal
+uses Tee.GridData.DB;
+
+// Direct TDataSet binding
+TeeGrid1.DataSource := FDMemTable1;
+
+// Or use TDataSource
+TeeGrid1.DataSource := DataSource1;
+```
+
+## Manual Binding
+
+For more control, create a `TVirtualDBData` instance manually:
+
+```pascal
+uses Tee.GridData.DB;
+
+// From TDataSource
+TeeGrid1.Data := TVirtualDBData.From(DataSource1);
+
+// From TDataSet
+TeeGrid1.Data := TVirtualDBData.From(MyDataSet1);
+```
+
+## Master-Detail Grids
+
+Create master-detail relationships using two grids and datasets:
+
+```pascal
+unit Unit_Master_Detail_Two_Grids;
+
+interface
+
+uses
+  FireDAC.Comp.DataSet, FireDAC.Comp.Client,
+  Data.DB, FMXTee.Grid;
+
+type
+  TForm54 = class(TForm)
+    CustomersTable: TFDQuery;
+    OrdersTable: TFDTable;
+    DataSource1: TDataSource;
+    DataSource2: TDataSource;
+    TeeGrid1: TTeeGrid;  // Master grid
+    TeeGrid2: TTeeGrid;  // Detail grid
+    procedure FormCreate(Sender: TObject);
+  end;
+
+implementation
+
+procedure TForm54.FormCreate(Sender: TObject);
+begin
+  // Activate the master table
+  CustomersTable.Active := True;
+  
+  // The detail table will automatically follow
+  // through the TDataSource master-detail link
+  OrdersTable.Active := True;
+end;
+```
+
+<Note>
+The grids automatically update when navigating through the master dataset. The detail grid shows related records based on the `MasterSource` and `MasterFields` properties of your dataset.
+</Note>
+
+## Column Mapping
+
+`TVirtualDBData` automatically creates columns for all dataset fields. Each column is linked to its corresponding `TField`:
+
+```pascal
+var
+  Data: TVirtualDBData;
+begin
+  Data := TVirtualDBData.From(CustomersTable);
+  TeeGrid1.Data := Data;
+  
+  // Columns are automatically created from fields
+  // Access via TeeGrid1.Columns['FieldName']
+end;
+```
+
+## Field Properties
+
+The grid respects field properties from your dataset:
+
+- **Read-only fields**: Non-editable columns
+- **Display format**: Number and date formatting
+- **Alignment**: Numeric fields auto-align right
+- **Field type**: Determines column data type
+
+## Fetch Modes
+
+Control how records are loaded from the dataset:
+
+```pascal
+var
+  Data: TVirtualDBData;
+begin
+  Data := TVirtualDBData.From(MyDataSet);
+  
+  // Automatic (default): Fetches records as needed
+  Data.FetchMode := TVirtualFetchMode.Automatic;
+  
+  // All: Loads all records immediately
+  Data.FetchMode := TVirtualFetchMode.All;
+  
+  // Partial: Loads visible records only
+  Data.FetchMode := TVirtualFetchMode.Partial;
+  
+  TeeGrid1.Data := Data;
+end;
+```
+
+<Tip>
+Use `TVirtualFetchMode.All` for small datasets where you need accurate row counts. Use `Automatic` or `Partial` for large datasets to improve performance.
+</Tip>
+
+## Editing Data
+
+When a cell is edited, changes are automatically written back to the dataset:
+
+```pascal
+// The grid handles editing automatically
+// Changes go through the dataset's BeforePost/AfterPost events
+TeeGrid1.ReadOnly := False;  // Enable editing
+
+// Make specific columns read-only
+TeeGrid1.Columns['CustomerID'].ReadOnly := True;
+```
+
+## Working with Fields
+
+Access the underlying `TField` objects:
+
+```pascal
+var
+  Data: TVirtualDBData;
+  Field: TField;
+begin
+  Data := TVirtualDBData.From(MyDataSet);
+  
+  // Get field from column
+  Field := Data.DataSet.FieldByName('CustomerName');
+  
+  // Customize field display
+  Field.DisplayLabel := 'Customer';
+  Field.DisplayWidth := 30;
+  
+  if Field is TFloatField then
+    TFloatField(Field).DisplayFormat := '#,##0.00';
+end;
+```
+
+## Supported Datasets
+
+`TVirtualDBData` works with any `TDataSet` descendant:
+
+- **FireDAC**: `TFDQuery`, `TFDTable`, `TFDMemTable`
+- **dbExpress**: `TSQLQuery`, `TSQLTable`
+- **ClientDataSet**: `TClientDataSet`
+- **ADO**: `TADOQuery`, `TADOTable`
+- **BDE**: `TQuery`, `TTable` (legacy)
+
+## Performance Tips
+
+<AccordionGroup>
+  <Accordion title="Large Datasets">
+    For datasets with thousands of records:
+    
+    - Use `FetchMode := Partial` to load only visible rows
+    - Enable dataset buffering with `BufferCount`
+    - Consider server-side filtering and paging
+    - Use indexes for sorted columns
+  </Accordion>
+  
+  <Accordion title="Network Databases">
+    When connecting to remote databases:
+    
+    - Use parameterized queries to reduce data transfer
+    - Fetch only required fields (`SELECT field1, field2`)
+    - Implement lazy loading for detail grids
+    - Cache frequently accessed data with `TFDMemTable`
+  </Accordion>
+  
+  <Accordion title="Real-time Updates">
+    Handle dataset changes efficiently:
+    
+    ```pascal
+    procedure TForm.DataSetAfterPost(DataSet: TDataSet);
+    begin
+      TeeGrid1.Invalidate;  // Refresh grid display
+    end;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Data Source API Reference
+
+### TVirtualDBData Class
+
+Key properties and methods:
+
+| Member | Description |
+|--------|-------------|
+| `DataSet: TDataSet` | The underlying dataset (read-only) |
+| `FetchMode: TVirtualFetchMode` | Controls record loading behavior |
+| `OwnsData: Boolean` | Whether the data object owns the dataset |
+| `From(ASource: TComponent)` | Factory method to create from TDataSet or TDataSource |
+
+### Events
+
+The grid fires standard dataset events:
+
+- `BeforeEdit`, `AfterEdit`
+- `BeforePost`, `AfterPost`
+- `BeforeDelete`, `AfterDelete`
+- `OnUpdateRecord`
+
+## Common Issues
+
+<Warning>
+**Dataset not active**: Ensure your dataset is `Active := True` before assigning to the grid.
+</Warning>
+
+<Warning>
+**Read-only dataset**: Check that your dataset's `CanModify` returns `True` if you need editing support.
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Arrays and Lists" icon="list" href="/data/arrays-and-lists">
+    Bind TArray&lt;T&gt; and TList&lt;T&gt; using RTTI
+  </Card>
+  
+  <Card title="String Grids" icon="table" href="/data/strings">
+    Use TStringGrid-style string arrays
+  </Card>
+  
+  <Card title="Custom Data" icon="code" href="/data/custom-virtual-data">
+    Create custom TVirtualData implementations
+  </Card>
+  
+  <Card title="Grid API" icon="book" href="/api/teegrid">
+    Explore the complete TeeGrid API
+  </Card>
+</CardGroup>

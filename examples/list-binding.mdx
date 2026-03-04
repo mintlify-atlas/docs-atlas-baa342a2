@@ -1,0 +1,346 @@
+---
+title: "List Binding Example"
+description: "Use TeeGrid with generic TList<T> and TObjectList<T> collections"
+---
+
+## Overview
+
+TeeGrid supports direct binding to generic `TList<T>` and `TObjectList<T>` collections, providing automatic UI updates as your list changes.
+
+## Basic TList Binding
+
+### TList&lt;TPerson&gt;
+
+```pascal
+uses
+  System.Generics.Collections, Tee.GridData, Tee.GridData.Rtti;
+
+var
+  MyPersons: TList<TPerson>;
+
+procedure TFormGridTList.FormCreate(Sender: TObject);
+begin
+  // Create and fill the list
+  MyPersons := TList<TPerson>.Create;
+  FillMyData(MyPersons, 20);  // Add 20 persons
+
+  // Bind list to grid
+  TeeGrid1.Data := TVirtualListData<TPerson>.Create(MyPersons);
+  
+  // Enable automatic row height
+  TeeGrid1.Rows.Height.Automatic := True;
+end;
+
+procedure TFormGridTList.FormDestroy(Sender: TObject);
+begin
+  MyPersons.Free;
+end;
+```
+
+## TObjectList Binding
+
+### TObjectList&lt;TCar&gt;
+
+```pascal
+var
+  MyCars: TObjectList<TCar>;
+
+procedure CarsExample;
+begin
+  // Create and fill object list
+  MyCars := TObjectList<TCar>.Create;  // Will auto-free objects
+  FillMyData(MyCars, 20);
+
+  // Bind to grid
+  TeeGrid1.Data := TVirtualObjectListData<TCar>.Create(MyCars);
+end;
+```
+
+<Info>
+  `TObjectList<T>` automatically manages the lifetime of its objects when freed.
+</Info>
+
+## Controlling Visibility
+
+### Member Visibility
+
+Control which fields and properties are displayed:
+
+```pascal
+uses
+  System.TypInfo;
+
+const
+  PublicAndPublished = [TMemberVisibility.mvPublic, TMemberVisibility.mvPublished];
+
+procedure PersonsExample;
+begin
+  TeeGrid1.Data := TVirtualListData<TPerson>.Create(
+    MyPersons,
+    PublicAndPublished,      // Which members to show
+    TRttiMembers.Both,       // Show fields AND properties
+    False                    // Don't include ancestor members
+  );
+end;
+```
+
+### Including Ancestor Members
+
+```pascal
+// Show ancestor class members (e.g., TVehicle.Brand for TCar)
+TeeGrid1.Data := TVirtualObjectListData<TCar>.Create(
+  MyCars,
+  PublicAndPublished,
+  TRttiMembers.Both,
+  True  // Include ancestor members
+);
+```
+
+## Complete Example from Demos
+
+From `Unit_TList.pas` in the VirtualData demos:
+
+```pascal
+unit Unit_TList;
+
+interface
+
+uses
+  System.SysUtils, System.Classes, FMX.Forms, FMX.Controls,
+  FMXTee.Control, FMXTee.Grid, FMX.ListBox, FMX.StdCtrls;
+
+type
+  TFormGridTList = class(TForm)
+    TeeGrid1: TTeeGrid;
+    CBTheme: TComboBox;
+    CBExample: TComboBox;
+    CBAncestor: TCheckBox;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure CBThemeChange(Sender: TObject);
+    procedure CBExampleChange(Sender: TObject);
+    procedure CBAncestorChange(Sender: TObject);
+  private
+    procedure CarsExample;
+    procedure CreateExample;
+    procedure PersonsExample;
+  end;
+
+implementation
+
+uses
+  System.TypInfo, System.Generics.Collections,
+  Tee.GridData, Tee.GridData.Rtti, Tee.Grid.Themes,
+  Unit_MyData;
+
+var
+  MyPersons: TList<TPerson>;
+  MyCars: TObjectList<TCar>;
+
+const
+  PublicAndPublished = [TMemberVisibility.mvPublic, TMemberVisibility.mvPublished];
+
+procedure TFormGridTList.PersonsExample;
+begin
+  // Bind TList<TPerson> to grid
+  TeeGrid1.Data := TVirtualListData<TPerson>.Create(
+    MyPersons,
+    PublicAndPublished,
+    TRttiMembers.Both,
+    CBAncestor.IsChecked
+  );
+  
+  // Alternative way:
+  // TeeGrid1.Data := TVirtualData<TList<TPerson>>.Create(MyPersons);
+end;
+
+procedure TFormGridTList.CarsExample;
+begin
+  // Bind TObjectList<TCar> to grid
+  TeeGrid1.Data := TVirtualObjectListData<TCar>.Create(
+    MyCars,
+    PublicAndPublished,
+    TRttiMembers.Both,
+    CBAncestor.IsChecked
+  );
+end;
+
+procedure TFormGridTList.CreateExample;
+begin
+  if CBExample.ItemIndex = 0 then
+    PersonsExample
+  else
+    CarsExample;
+end;
+
+procedure TFormGridTList.CBThemeChange(Sender: TObject);
+begin
+  case CBTheme.ItemIndex of
+    1: TGridThemes.Default.ApplyTo(TeeGrid1.Grid);
+    2: TGridThemes.Black.ApplyTo(TeeGrid1.Grid);
+    3: TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+    4: TGridThemes.Android.ApplyTo(TeeGrid1.Grid);
+  end;
+end;
+
+procedure TFormGridTList.CBAncestorChange(Sender: TObject);
+begin
+  CreateExample;  // Recreate with/without ancestor members
+end;
+
+procedure TFormGridTList.CBExampleChange(Sender: TObject);
+begin
+  CreateExample;
+  CBAncestor.Enabled := CBExample.ItemIndex = 1;  // Only for Cars
+end;
+
+procedure TFormGridTList.FormCreate(Sender: TObject);
+begin
+  // Create sample data
+  MyPersons := TList<TPerson>.Create;
+  FillMyData(MyPersons, 20);
+
+  MyCars := TObjectList<TCar>.Create;
+  FillMyData(MyCars, 20);
+
+  // Display initial example
+  CreateExample;
+
+  // Enable automatic row heights
+  TeeGrid1.Rows.Height.Automatic := True;
+end;
+
+procedure TFormGridTList.FormDestroy(Sender: TObject);
+begin
+  MyPersons.Free;
+  MyCars.Free;  // Also frees all car objects
+end;
+
+end.
+```
+
+## Key Concepts
+
+### TVirtualListData vs TVirtualObjectListData
+
+- **TVirtualListData**: For `TList<T>` of records or simple types
+- **TVirtualObjectListData**: For `TList<T>` or `TObjectList<T>` of objects
+
+### Member Filtering
+
+Control what gets displayed:
+
+```pascal
+type
+  TMemberVisibility = (mvPrivate, mvProtected, mvPublic, mvPublished);
+  TRttiMembers = (Fields, Properties, Both);
+
+// Examples:
+[TMemberVisibility.mvPublic]              // Only public members
+[TMemberVisibility.mvPublished]           // Only published members
+[TMemberVisibility.mvPublic, mvPublished] // Both public and published
+
+TRttiMembers.Fields      // Only fields
+TRttiMembers.Properties  // Only properties  
+TRttiMembers.Both        // Both fields and properties
+```
+
+### Live Updates
+
+Changes to the list automatically reflect in the grid:
+
+```pascal
+// Add a new item
+var
+  NewPerson: TPerson;
+begin
+  NewPerson.Name := 'John';
+  NewPerson.Age := 30;
+  MyPersons.Add(NewPerson);
+  TeeGrid1.Invalidate;  // Refresh display
+end;
+
+// Remove an item
+MyPersons.Delete(5);
+TeeGrid1.Invalidate;
+```
+
+## Advanced Usage
+
+### Custom Visibility
+
+```pascal
+// Show only public fields (no properties)
+TeeGrid1.Data := TVirtualListData<TPerson>.Create(
+  MyPersons,
+  [TMemberVisibility.mvPublic],
+  TRttiMembers.Fields,
+  False
+);
+```
+
+### Combining with Themes
+
+```pascal
+uses
+  Tee.Grid.Themes;
+
+// Apply a theme after binding data
+TGridThemes.iOS.ApplyTo(TeeGrid1.Grid);
+```
+
+## Performance Considerations
+
+- TeeGrid uses virtual rendering - only visible rows are drawn
+- Lists of 10,000+ items perform smoothly
+- RTTI reflection is done once during binding, not during rendering
+
+## Common Patterns
+
+### Record Lists
+
+```pascal
+var
+  Items: TList<TMyRecord>;
+begin
+  Items := TList<TMyRecord>.Create;
+  try
+    // Fill list
+    TeeGrid1.Data := TVirtualListData<TMyRecord>.Create(Items);
+  finally
+    // Don't free Items while grid is using it!
+  end;
+end;
+```
+
+### Object Lists with Ownership
+
+```pascal
+var
+  Objects: TObjectList<TMyObject>;
+begin
+  Objects := TObjectList<TMyObject>.Create(True);  // Owns objects
+  // TObjectList will free all objects when destroyed
+end;
+```
+
+## Features Demonstrated
+
+- Binding `TList<T>` of records
+- Binding `TObjectList<T>` of objects
+- Controlling member visibility
+- Including/excluding ancestor members
+- Automatic column generation from RTTI
+- Live data updates
+
+## Next Steps
+
+- Explore [Array Binding](/examples/array-binding) for array data
+- Learn about [Custom Editors](/examples/custom-editors) for editing
+- See [Virtual Mode](/examples/virtual-mode) for maximum control
+
+## Related Examples
+
+- [Array Binding](/examples/array-binding)
+- [Dataset Binding](/examples/dataset-binding)
+- [Virtual Mode](/examples/virtual-mode)

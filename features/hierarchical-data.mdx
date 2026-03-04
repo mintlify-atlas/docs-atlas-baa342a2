@@ -1,0 +1,405 @@
+---
+title: Hierarchical Data (Master-Detail)
+description: Display nested data with expandable rows
+---
+
+TeeGrid supports hierarchical data through expandable rows, enabling master-detail relationships and multi-level data nesting.
+
+## Overview
+
+Hierarchical data in TeeGrid is implemented using:
+
+- **Expander** - A render that adds expand/collapse icons to rows
+- **OnGetData** - Event to provide data for expanded rows
+- **OnNewDetail** - Event called when a detail grid is created
+- **TRowGroup** - Each expansion level is a separate row group
+
+## Basic Master-Detail Setup
+
+```delphi
+uses
+  Tee.Grid.RowGroup, Tee.Renders;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  Expander: TExpanderRender;
+begin
+  // Setup master data
+  TeeGrid1.DataSource := CustomersTable;
+  
+  // Create expander for first column
+  Expander := TeeGrid1.Grid.Current.NewExpander;
+  Expander.OnGetData := GetOrdersData;
+  
+  // Set to first column
+  if TeeGrid1.Columns.Count > 0 then
+    TeeGrid1.Columns[0].Render := Expander;
+  
+  // Optional: Called when detail grid is created
+  TeeGrid1.Grid.Current.OnNewDetail := DetailGridCreated;
+end;
+```
+
+## OnGetData Event
+
+Provide data for the expanded row:
+
+```delphi
+procedure TForm1.GetOrdersData(const Sender: TExpanderRender; 
+  const ARow: Integer; out AData: TObject);
+begin
+  // Return data for the detail grid
+  AData := TVirtualDBData.From(GetOrdersForCustomer(ARow));
+  
+  // Grid will destroy the data automatically
+  TVirtualDBData(AData).OwnsData := True;
+end;
+```
+
+## Array Data Master-Detail
+
+```delphi
+type
+  TOrder = record
+    OrderID: Integer;
+    Date: TDateTime;
+    Amount: Double;
+  end;
+  
+  TCustomer = record
+    Name: String;
+    Orders: TArray<TOrder>;
+  end;
+
+var
+  Customers: TArray<TCustomer>;
+
+procedure TForm1.GetOrdersData(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Return orders for this customer
+  AData := TVirtualArrayData<TOrder>.Create(Customers[ARow].Orders);
+end;
+```
+
+## AlwaysExpand Property
+
+Control when expand icons appear:
+
+```delphi
+// Show expander only when CanExpand returns True
+Expander.AlwaysExpand := False;
+
+// Always show expander (determine at expand time if there's data)
+Expander.AlwaysExpand := True;
+```
+
+## CanExpand Event
+
+Control which rows can be expanded:
+
+```delphi
+function TForm1.CanExpandRow(const Sender: TRender; 
+  const ARow: Integer): Boolean;
+begin
+  // Only allow expansion if customer has orders
+  Result := CustomerHasOrders(ARow);
+end;
+
+// Assign to grid
+TeeGrid1.Grid.CanExpand := CanExpandRow;
+```
+
+## OnNewDetail Event
+
+Customize the detail grid when created:
+
+```delphi
+procedure TForm1.DetailGridCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Customize detail grid appearance
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.Bisque;
+  NewGroup.Rows.Back.Brush.Visible := True;
+  NewGroup.Cells.Format.Font.Color := TAlphaColors.Darkblue;
+  
+  // Add totals to detail grid
+  AddTotalsToGroup(NewGroup);
+  
+  // Setup next level of detail (3+ levels)
+  SetupNextLevel(NewGroup);
+end;
+```
+
+## Multi-Level Hierarchies
+
+Create 3+ levels of nesting:
+
+```delphi
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Level 1: Customers
+  TeeGrid1.DataSource := CustomersTable;
+  SetupExpander(TeeGrid1.Grid.Current, GetOrders);
+  TeeGrid1.Grid.Current.OnNewDetail := Level2Created;
+end;
+
+procedure TForm1.Level2Created(const Sender, NewGroup: TRowGroup);
+begin
+  // Level 2: Orders
+  SetupExpander(NewGroup, GetOrderItems);
+  NewGroup.OnNewDetail := Level3Created;
+end;
+
+procedure TForm1.Level3Created(const Sender, NewGroup: TRowGroup);
+begin
+  // Level 3: Order Items (no further expansion)
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.Lavender;
+  NewGroup.Rows.Back.Brush.Visible := True;
+end;
+
+procedure TForm1.SetupExpander(const AGroup: TRowGroup; 
+  const AEvent: TExpanderGetDataEvent);
+var
+  Expander: TExpanderRender;
+begin
+  Expander := AGroup.NewExpander;
+  Expander.OnGetData := AEvent;
+  Expander.AlwaysExpand := True;
+  
+  if AGroup.Columns.Count > 0 then
+    AGroup.Columns[0].Render := Expander;
+end;
+```
+
+## Database Master-Detail
+
+Using FireDAC with master-detail queries:
+
+```delphi
+procedure TForm1.GetOrders(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+var
+  CustomerID: Integer;
+begin
+  // Get CustomerID from master table
+  CustomerID := CustomersTable.FieldByName('CustomerID').AsInteger;
+  
+  // Create detail query
+  AData := TVirtualDBData.From(CreateOrdersQuery(CustomerID));
+  TVirtualDBData(AData).OwnsData := True;
+end;
+
+function TForm1.CreateOrdersQuery(CustomerID: Integer): TDataSet;
+var
+  Query: TFDQuery;
+begin
+  Query := TFDQuery.Create(nil);
+  Query.Connection := FDConnection1;
+  Query.SQL.Text := 'SELECT * FROM Orders WHERE CustomerID = :CustID';
+  Query.ParamByName('CustID').AsInteger := CustomerID;
+  Query.Open;
+  Result := Query;
+end;
+```
+
+## Programmatic Expansion
+
+Expand/collapse rows programmatically:
+
+```delphi
+// Expand specific row
+TeeGrid1.Grid.Current.ToggleDetail(Expander, RowIndex);
+
+// Expand all rows at level 0
+TeeGrid1.Grid.Current.ShowHideAllDetail(0, True);
+
+// Collapse all rows at level 0
+TeeGrid1.Grid.Current.ShowHideAllDetail(0, False);
+```
+
+## Toggle All Rows Example
+
+```delphi
+var
+  AllExpanded: Boolean;
+
+procedure TForm1.ButtonToggleAllClick(Sender: TObject);
+begin
+  AllExpanded := not AllExpanded;
+  TeeGrid1.Grid.Current.ShowHideAllDetail(0, AllExpanded);
+  
+  if AllExpanded then
+    Button1.Caption := 'Collapse All'
+  else
+    Button1.Caption := 'Expand All';
+end;
+```
+
+## Expander Icons
+
+Customize the expand/collapse icons:
+
+```delphi
+var
+  Expander: TExpanderRender;
+begin
+  Expander := TeeGrid1.Grid.Current.NewExpander;
+  
+  // Customize icon appearance
+  Expander.Format.Stroke.Color := clBlue;
+  Expander.Format.Stroke.Width := 2;
+  Expander.Format.Brush.Color := clWhite;
+  Expander.Format.Brush.Visible := True;
+end;
+```
+
+## Detail Grid Formatting
+
+Apply formatting to detail grids:
+
+```delphi
+procedure TForm1.DetailGridCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Background
+  NewGroup.Rows.Back.Brush.Color := TAlphaColors.Aliceblue;
+  NewGroup.Rows.Back.Brush.Visible := True;
+  
+  // Alternate rows
+  NewGroup.Rows.Alternate.Visible := True;
+  NewGroup.Rows.Alternate.Brush.Color := TAlphaColors.Lightcyan;
+  NewGroup.Rows.Alternate.Brush.Visible := True;
+  
+  // Font
+  NewGroup.Cells.Format.Font.Color := TAlphaColors.Navy;
+  NewGroup.Cells.Format.Font.Size := 9;
+  
+  // Header
+  NewGroup.Header.Format.Brush.Color := TAlphaColors.Steelblue;
+  NewGroup.Header.Format.Brush.Visible := True;
+  NewGroup.Header.Format.Font.Color := TAlphaColors.White;
+end;
+```
+
+## Detail Grid Selection
+
+Handle selection in detail grids:
+
+```delphi
+procedure TForm1.DetailGridCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Enable selection in detail grid
+  NewGroup.Selected.Format.Brush.Color := TAlphaColors.Yellow;
+  NewGroup.Selected.Format.Brush.Visible := True;
+  
+  // Handle selection changes
+  NewGroup.OnChangedSelected := DetailSelectionChanged;
+end;
+
+procedure TForm1.DetailSelectionChanged(Sender: TObject);
+var
+  Group: TRowGroup;
+begin
+  Group := TRowGroup(Sender);
+  ShowMessage('Selected row in detail: ' + IntToStr(Group.Selected.Row));
+end;
+```
+
+## Children Property
+
+Access expanded detail grids:
+
+```delphi
+// Access children of a row
+var
+  ChildGroup: TRowGroup;
+begin
+  if TeeGrid1.Grid.Current.Rows.Children.Count > 0 then
+  begin
+    ChildGroup := TRowGroup(TeeGrid1.Grid.Current.Rows.Children.Row[0]);
+    ShowMessage('Child grid has ' + IntToStr(ChildGroup.Data.Count) + ' rows');
+  end;
+end;
+```
+
+## Remove All Detail Grids
+
+```delphi
+// Remove all expanded detail grids
+TeeGrid1.Grid.Current.Rows.Children.Clear;
+
+// Remove expander from column
+if TeeGrid1.Columns.Count > 0 then
+  TeeGrid1.Columns[0].Render := nil;
+```
+
+## Enable/Disable Master-Detail
+
+```delphi
+procedure TForm1.CheckBoxEnabledChange(Sender: TObject);
+var
+  Expander: TExpanderRender;
+begin
+  if CheckBox1.Checked then
+  begin
+    // Enable
+    Expander := TeeGrid1.Grid.Current.NewExpander;
+    Expander.OnGetData := GetOrdersData;
+    Expander.AlwaysExpand := True;
+    
+    if TeeGrid1.Columns.Count > 0 then
+      TeeGrid1.Columns[0].Render := Expander;
+  end
+  else
+  begin
+    // Disable
+    TeeGrid1.Grid.Current.Rows.Children.Clear;
+    
+    if TeeGrid1.Columns.Count > 0 then
+      TeeGrid1.Columns[0].Render := nil;
+  end;
+end;
+```
+
+## Performance Tips
+
+For large hierarchies:
+
+```delphi
+// Use AlwaysExpand := True to defer data loading
+Expander.AlwaysExpand := True;
+
+// Load data only when expanded
+procedure TForm1.GetOrdersData(const Sender: TExpanderRender;
+  const ARow: Integer; out AData: TObject);
+begin
+  // Data is loaded on-demand when row is expanded
+  AData := LoadOrdersForCustomer(ARow);
+end;
+
+// Limit expansion levels
+var
+  ExpansionLevel: Integer;
+
+procedure TForm1.DetailGridCreated(const Sender, NewGroup: TRowGroup);
+begin
+  Inc(ExpansionLevel);
+  
+  // Only allow 2 levels deep
+  if ExpansionLevel < 2 then
+    SetupExpander(NewGroup, GetNextLevel)
+  else
+    // No more expansion
+    NewGroup.OnNewDetail := nil;
+end;
+```
+
+## Best Practices
+
+- Use `AlwaysExpand := True` for dynamic data where you don't know row count in advance
+- Set `OwnsData := True` on returned data objects so they're freed automatically
+- Use `OnNewDetail` to customize appearance of detail grids
+- Limit nesting levels (3-4 max) for usability
+- Apply distinct colors to each level for visual hierarchy
+- Use database queries with parameters for efficient master-detail
+- Consider pagination for large detail sets
+- Provide "Expand All" / "Collapse All" buttons for user convenience

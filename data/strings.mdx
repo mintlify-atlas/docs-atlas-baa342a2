@@ -1,0 +1,531 @@
+---
+title: "String-Based Grids"
+description: "Use TStringGrid-style string arrays for simple grid data with TStringsData and TVirtualModeData"
+---
+
+## Overview
+
+TeeGrid provides two classes for string-based grid data, similar to VCL's `TStringGrid`:
+
+- **`TStringsData`**: Maintains an internal 2D array of strings (like TStringGrid)
+- **`TVirtualModeData`**: Virtual mode with events for custom data storage
+
+Both provide a simple column × row grid without complex data binding.
+
+## TStringsData: String Array Storage
+
+`TStringsData` stores cell values in memory, perfect for replacing `TStringGrid`:
+
+```pascal
+uses Tee.GridData.Strings;
+
+var
+  Data: TStringsData;
+  Row: Integer;
+begin
+  // Create grid: 5 columns × 100,000 rows
+  Data := TStringsData.Create(5, 100000);
+  
+  // Set column headers
+  Data.Headers[0] := 'Column A';
+  Data.Headers[1] := 'Column B';
+  Data.Headers[2] := 'Column C';
+  
+  // Fill cells
+  for Row := 0 to Data.Rows - 1 do
+  begin
+    Data[0, Row] := 'A' + IntToStr(Row);
+    Data[1, Row] := 'B' + IntToStr(Row);
+    Data[2, Row] := 'C' + IntToStr(Row);
+  end;
+  
+  // Assign to grid
+  TeeGrid1.Data := Data;
+end;
+```
+
+<Info>
+`TStringsData` uses the default property `Cells[Column, Row]` so you can use array syntax: `Data[Col, Row]`
+</Info>
+
+## Creating and Resizing
+
+Multiple ways to initialize grid size:
+
+```pascal
+var
+  Data: TStringsData;
+begin
+  // Option 1: Specify size in constructor
+  Data := TStringsData.Create(10, 1000);
+  
+  // Option 2: Create empty, then set size
+  Data := TStringsData.Create;
+  Data.Columns := 10;
+  Data.Rows := 1000;
+  
+  // Option 3: Use Resize method
+  Data := TStringsData.Create;
+  Data.Resize(10, 1000);
+  
+  TeeGrid1.Data := Data;
+end;
+```
+
+## Working with Cells
+
+Access and modify cell values:
+
+```pascal
+var
+  Data: TStringsData;
+  Value: String;
+begin
+  Data := TStringsData.Create(5, 10);
+  
+  // Set cell value
+  Data[2, 3] := 'Hello';
+  Data.Cells[2, 3] := 'World';
+  
+  // Get cell value
+  Value := Data[2, 3];
+  
+  // Multi-line text (line breaks supported)
+  Data[1, 5] := 'Line 1' + #13#10 + 'Line 2';
+  
+  TeeGrid1.Data := Data;
+end;
+```
+
+<Tip>
+TeeGrid automatically handles multi-line text. Enable `TeeGrid1.Rows.Height.Automatic := True` to adjust row heights dynamically.
+</Tip>
+
+## Column Headers
+
+Set custom header text for each column:
+
+```pascal
+var
+  Data: TStringsData;
+begin
+  Data := TStringsData.Create(3, 100);
+  
+  // Set headers
+  Data.Headers[0] := 'Name';
+  Data.Headers[1] := 'Age';
+  Data.Headers[2] := 'City';
+  
+  // Multi-line headers
+  Data.Headers[0] := 'Customer' + #13#10 + 'Name';
+  
+  TeeGrid1.Data := Data;
+end;
+```
+
+## Performance Optimization
+
+For large grids (millions of cells), optimize rendering:
+
+```pascal
+var
+  Data: TStringsData;
+begin
+  // Pass default column width to skip auto-calculation (much faster)
+  Data := TStringsData.Create(1000, 100000, 60);  // 60 pixels default width
+  
+  // Alternatively, disable auto-width after creation
+  Data := TStringsData.Create(1000, 100000);
+  TeeGrid1.Columns.AutoWidth := False;
+  TeeGrid1.Columns.DefaultWidth := 60;
+  
+  TeeGrid1.Data := Data;
+end;
+```
+
+<AccordionGroup>
+  <Accordion title="Speed Tips for Large Grids">
+    When displaying huge grids (1000 × 100,000 = 100 million cells):
+    
+    - Disable alternating row colors: `TeeGrid1.Rows.Alternate.Hide`
+    - Disable header gradients: `TeeGrid1.Header.Format.Brush.Gradient.Hide`
+    - Hide scrollbars if not needed: `TeeGrid1.ScrollBars.Visible := False`
+    - Use fixed row height: `TeeGrid1.Rows.Height.Value := 24`
+    - Provide default column width in constructor
+  </Accordion>
+</AccordionGroup>
+
+## TVirtualModeData: Event-Driven
+
+`TVirtualModeData` doesn't store data internally — you provide values through events:
+
+```pascal
+uses Tee.GridData.Strings;
+
+type
+  TMyForm = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  private
+    Data: TVirtualModeData;
+    procedure GetCell(Sender: TObject; const AColumn: TColumn;
+      const ARow: Integer; var AValue: String);
+    procedure SetCell(Sender: TObject; const AColumn: TColumn;
+      const ARow: Integer; var AValue: String);
+  end;
+
+implementation
+
+procedure TMyForm.FormCreate(Sender: TObject);
+var
+  t: Integer;
+begin
+  // Create virtual grid: 10 columns × 20,000 rows × 60px width
+  Data := TVirtualModeData.Create(10, 20000, 60);
+  
+  // Set column headers
+  for t := 0 to Data.Columns - 1 do
+    Data.Headers[t] := 'Col ' + IntToStr(t);
+  
+  // Assign event handlers
+  Data.OnGetValue := GetCell;
+  Data.OnSetValue := SetCell;
+  
+  // Assign to grid
+  TeeGrid1.Data := Data;
+end;
+
+procedure TMyForm.GetCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Return value from your data source
+  // In this example, just calculate a string
+  AValue := IntToStr(Data.IndexOf(AColumn)) + ' × ' + IntToStr(ARow);
+end;
+
+procedure TMyForm.SetCell(Sender: TObject; const AColumn: TColumn;
+  const ARow: Integer; var AValue: String);
+begin
+  // Store the new value in your data source
+  // Called when user edits a cell
+end;
+```
+
+<Info>
+**Virtual Mode Benefits**: No memory overhead for cell storage. Perfect for computed values, database-backed data, or grids with billions of cells.
+</Info>
+
+## Real-World Example
+
+Complete `TStringGrid` replacement example:
+
+```pascal
+unit Unit_StringGrid;
+
+interface
+
+uses
+  System.SysUtils, System.Classes,
+  Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls,
+  VCLTee.Grid, Tee.GridData.Strings;
+
+type
+  TStringGridForm = class(TForm)
+    TeeGrid1: TTeeGrid;
+    Panel1: TPanel;
+    EColumns: TEdit;
+    ERows: TEdit;
+    Button1: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
+    procedure EColumnsChange(Sender: TObject);
+    procedure ERowsChange(Sender: TObject);
+    procedure TeeGrid1Select(Sender: TObject);
+  private
+    Data: TStringsData;
+  end;
+
+implementation
+
+procedure TStringGridForm.FormCreate(Sender: TObject);
+var
+  Row: Integer;
+begin
+  // Create grid data
+  Data := TStringsData.Create(1000, 100000, 60);
+  
+  // Set headers
+  Data.Headers[0] := 'A' + #13#10 + 'Text';
+  Data.Headers[1] := 'B';
+  Data.Headers[2] := 'C';
+  Data.Headers[3] := 'Status';
+  
+  // Fill cells
+  for Row := 0 to Data.Rows - 1 do
+  begin
+    Data[0, Row] := 'A' + IntToStr(Row);
+    Data[1, Row] := 'B' + IntToStr(Row);
+    Data[2, Row] := 'C' + IntToStr(Row);
+    
+    if Random(100) < 30 then
+      Data[3, Row] := 'OK';
+  end;
+  
+  // Multi-line cell
+  Data[2, 4] := Data[2, 4] + #13#10 + 'This is a long line';
+  
+  // Assign to grid
+  TeeGrid1.Data := Data;
+  
+  // Set default row height
+  TeeGrid1.Rows.Height.Value := 32;
+  
+  // Update UI
+  EColumns.Text := IntToStr(Data.Columns);
+  ERows.Text := IntToStr(Data.Rows);
+end;
+
+procedure TStringGridForm.FormDestroy(Sender: TObject);
+begin
+  // TeeGrid owns the Data object, but it's good practice to nil the reference
+  Data := nil;
+end;
+
+procedure TStringGridForm.EColumnsChange(Sender: TObject);
+var
+  NewCols: Integer;
+begin
+  if TryStrToInt(EColumns.Text, NewCols) then
+  begin
+    TStringsData(TeeGrid1.Data).Columns := NewCols;
+    TeeGrid1.Invalidate;
+  end;
+end;
+
+procedure TStringGridForm.ERowsChange(Sender: TObject);
+var
+  NewRows: Integer;
+begin
+  if TryStrToInt(ERows.Text, NewRows) then
+  begin
+    TStringsData(TeeGrid1.Data).Rows := NewRows;
+    TeeGrid1.Invalidate;
+  end;
+end;
+
+procedure TStringGridForm.TeeGrid1Select(Sender: TObject);
+var
+  Sel: TGridSelection;
+begin
+  Sel := TeeGrid1.Grid.Current.Selected;
+  
+  if not Sel.IsEmpty then
+    Panel1.Caption := Format('Selected: %s, Row: %d, Value: %s',
+      [Sel.Column.Header.Text, Sel.Row,
+       TeeGrid1.Grid.Current.Data.AsString(Sel.Column, Sel.Row)]);
+end;
+
+end.
+```
+
+## Custom Cell Rendering
+
+Override cell painting for custom display:
+
+```pascal
+uses Tee.Painter, Tee.Renders;
+
+procedure TMyForm.FormCreate(Sender: TObject);
+begin
+  Data := TStringsData.Create(5, 100);
+  TeeGrid1.Data := Data;
+  
+  // Custom paint for column 3
+  TeeGrid1.Columns[3].OnPaint := PaintStatusColumn;
+end;
+
+procedure TMyForm.PaintStatusColumn(
+  const Sender: TColumn;
+  var AData: TRenderData;
+  var DefaultPaint: Boolean
+);
+var
+  CellRect: TRectF;
+begin
+  // Custom rendering for "OK" cells
+  if SameText(AData.Data, 'OK') then
+  begin
+    DefaultPaint := False;  // Skip default text rendering
+    
+    CellRect := AData.Bounds;
+    CellRect.Inflate(-8, -6);
+    
+    // Draw custom content (e.g., an image)
+    AData.Painter.Draw(OkPicture, CellRect);
+  end
+  else
+    DefaultPaint := True;  // Use default rendering
+end;
+```
+
+## Cell Formatting
+
+Apply custom formatting to specific cells:
+
+```pascal
+uses Tee.Format, System.UIConsts;
+
+procedure TMyForm.FormCreate(Sender: TObject);
+var
+  Row: TRow;
+begin
+  Data := TStringsData.Create(5, 100);
+  TeeGrid1.Data := Data;
+  
+  // Format entire row
+  Row := TeeGrid1.Rows.Items.AddRow(7);
+  Row.Format.Brush.Color := TColors.Red;
+  Row.Format.Font.Color := claWhite;
+  Row.Format.Brush.Show;
+  
+  // Format individual cell
+  TeeGrid1.CellFormat.AddCell(3, 4);
+  TeeGrid1.CellFormat.Cell[3, 4].Format.Brush.Color := TColors.Green;
+  TeeGrid1.CellFormat.Cell[3, 4].Format.Font.Color := claYellow;
+  TeeGrid1.CellFormat.Cell[3, 4].Format.Brush.Show;
+end;
+```
+
+## Sub-Bands (Grouping Rows)
+
+Insert separator bands between rows:
+
+```pascal
+uses Tee.Grid.Bands;
+
+procedure TMyForm.FormCreate(Sender: TObject);
+var
+  Title: TTextBand;
+begin
+  Data := TStringsData.Create(5, 100);
+  TeeGrid1.Data := Data;
+  
+  // Insert a sub-band at row 20
+  Title := TTextBand.Create(TeeGrid1.Rows.SubBands);
+  Title.Text := 'Section Title' + #13#10 + 'Subtitle';
+  Title.Format.Font.Style := [fsBold];
+  Title.Format.Brush.Show;
+  Title.Format.Brush.Color := TColors.LightBlue;
+  
+  TeeGrid1.Rows.SubBands.Row[20] := Title;
+end;
+```
+
+## Comparison: TStringsData vs TVirtualModeData
+
+| Feature | TStringsData | TVirtualModeData |
+|---------|--------------|------------------|
+| **Storage** | Internal 2D string array | Event-driven, no storage |
+| **Memory** | O(columns × rows) | O(1) |
+| **Performance** | Fast for small/medium grids | Fast for any size |
+| **Use Case** | Direct TStringGrid replacement | Computed values, external data |
+| **Editing** | Built-in cell storage | You handle storage in events |
+
+## Common Patterns
+
+<AccordionGroup>
+  <Accordion title="CSV Import">
+    Import CSV data into TStringsData:
+    
+    ```pascal
+    procedure LoadCSV(const FileName: String; Data: TStringsData);
+    var
+      CSV: TStringList;
+      Row, Col: Integer;
+      Values: TArray<String>;
+    begin
+      CSV := TStringList.Create;
+      try
+        CSV.LoadFromFile(FileName);
+        Data.Rows := CSV.Count;
+        
+        for Row := 0 to CSV.Count - 1 do
+        begin
+          Values := CSV[Row].Split([',']);
+          
+          if Length(Values) > Data.Columns then
+            Data.Columns := Length(Values);
+          
+          for Col := 0 to High(Values) do
+            Data[Col, Row] := Values[Col];
+        end;
+      finally
+        CSV.Free;
+      end;
+    end;
+    ```
+  </Accordion>
+  
+  <Accordion title="Formula Calculation">
+    Use TVirtualModeData for spreadsheet-like formulas:
+    
+    ```pascal
+    procedure TMyForm.GetCell(Sender: TObject; const AColumn: TColumn;
+      const ARow: Integer; var AValue: String);
+    var
+      ColIndex: Integer;
+    begin
+      ColIndex := Data.IndexOf(AColumn);
+      
+      // First column: row numbers
+      if ColIndex = 0 then
+        AValue := IntToStr(ARow + 1)
+      // Sum column: calculate sum
+      else if ColIndex = 5 then
+        AValue := FloatToStr(CalculateRowSum(ARow))
+      else
+        AValue := FDataArray[ColIndex, ARow];
+    end;
+    ```
+  </Accordion>
+  
+  <Accordion title="Search Highlight">
+    Highlight search results:
+    
+    ```pascal
+    procedure TMyForm.SearchAndHighlight(const SearchText: String);
+    var
+      Row, Col: Integer;
+    begin
+      for Row := 0 to Data.Rows - 1 do
+        for Col := 0 to Data.Columns - 1 do
+          if Pos(SearchText, Data[Col, Row]) > 0 then
+          begin
+            TeeGrid1.CellFormat.AddCell(Col, Row);
+            TeeGrid1.CellFormat.Cell[Col, Row].Format.Brush.Color := TColors.Yellow;
+            TeeGrid1.CellFormat.Cell[Col, Row].Format.Brush.Show;
+          end;
+    end;
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DataSet Binding" icon="database" href="/data/datasets">
+    Connect to TDataSet and TDataSource
+  </Card>
+  
+  <Card title="Arrays and Lists" icon="list" href="/data/arrays-and-lists">
+    Bind TArray&lt;T&gt; and TList&lt;T&gt; using RTTI
+  </Card>
+  
+  <Card title="Custom Data" icon="code" href="/data/custom-virtual-data">
+    Create custom TVirtualData implementations
+  </Card>
+  
+  <Card title="Rendering API" icon="paintbrush" href="/api/trender">
+    Customize cell appearance and painting
+  </Card>
+</CardGroup>

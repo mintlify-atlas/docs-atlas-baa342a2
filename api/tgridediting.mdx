@@ -1,0 +1,387 @@
+---
+title: TGridEditing
+description: Controls cell editing behavior in TeeGrid, including activation modes, editor types, and keyboard handling
+---
+
+## Overview
+
+The `TGridEditing` class manages how cells are edited in a TeeGrid. It provides comprehensive control over when and how editing begins, what editor controls are used, and how user input is processed.
+
+## Class Hierarchy
+
+```
+TPersistentChange
+  └── TGridEditing
+```
+
+## Key Features
+
+- Auto-edit mode for immediate editing
+- Double-click or single-click activation
+- Always-visible editors
+- Custom editor class support per column
+- Configurable Enter key behavior
+- Text selection options
+
+## Properties
+
+### Active
+
+```pascal
+property Active: Boolean read FActive write FActive default False;
+```
+
+Indicates whether an editor is currently active and visible.
+
+**Default**: `False`
+
+**Note**: This property is typically set internally by the grid. Read this property to check if editing is in progress.
+
+**Example**:
+```pascal
+if TeeGrid1.Editing.Active then
+  ShowMessage('A cell is currently being edited');
+```
+
+### AlwaysVisible
+
+```pascal
+property AlwaysVisible: Boolean read FAlwaysVisible write FAlwaysVisible default False;
+```
+
+When `True`, the editor control remains visible for the selected cell at all times.
+
+**Default**: `False`
+
+**Example**:
+```pascal
+TeeGrid1.Editing.AlwaysVisible := True; // Editor always shows in selected cell
+```
+
+### AutoEdit
+
+```pascal
+property AutoEdit: Boolean read FAutoEdit write FAutoEdit default False;
+```
+
+When `True`, typing in a selected cell immediately starts editing mode without requiring a double-click or F2 key.
+
+**Default**: `False`
+
+**Example**:
+```pascal
+TeeGrid1.Editing.AutoEdit := True; // Start editing when user types
+```
+
+### DoubleClick
+
+```pascal
+property DoubleClick: Boolean read FDoubleClick write FDoubleClick default True;
+```
+
+When `True`, double-clicking a cell starts edit mode. When `False`, a single click is sufficient.
+
+**Default**: `True`
+
+**Example**:
+```pascal
+TeeGrid1.Editing.DoubleClick := False; // Single-click to edit
+```
+
+### EnterKey
+
+```pascal
+property EnterKey: TEditingEnter read FEnterKey write FEnterKey default TEditingEnter.NextCell;
+```
+
+Determines what happens when the Enter key is pressed while editing.
+
+**Type**: `TEditingEnter`
+
+**Values**:
+- `TEditingEnter.NextCell` - Move to the next cell in the current row
+- `TEditingEnter.NextRow` - Move to the same column in the next row
+- `TEditingEnter.SameCell` - Stay in the current cell
+
+**Default**: `TEditingEnter.NextCell`
+
+**Example**:
+```pascal
+// Press Enter to move down to next row
+TeeGrid1.Editing.EnterKey := TEditingEnter.NextRow;
+```
+
+### EditorClass
+
+```pascal
+property EditorClass: TClass read FClass write FClass;
+```
+
+The default editor control class to use for editing cells. Can be overridden per column.
+
+**Default**: `TEdit` (or platform equivalent)
+
+**Example**:
+```pascal
+// Use a custom editor class
+TeeGrid1.Editing.EditorClass := TMyCustomEditor;
+```
+
+### Text
+
+```pascal
+property Text: TTextEditing read FText write SetText;
+```
+
+Configures text editing behavior, such as whether text is selected when editing begins.
+
+**Example**:
+```pascal
+TeeGrid1.Editing.Text.Selected := True; // Select all text when editing starts
+```
+
+## Methods
+
+### Constructor Create
+
+```pascal
+Constructor Create(const AChanged: TNotifyEvent); override;
+```
+
+Creates a new `TGridEditing` instance.
+
+**Parameters**:
+- `AChanged`: Event handler called when editing properties change
+
+### Assign
+
+```pascal
+procedure Assign(Source: TPersistent); override;
+```
+
+Copies editing properties from another object.
+
+**Parameters**:
+- `Source`: The source object to copy from
+
+**Example**:
+```pascal
+TeeGrid2.Editing.Assign(TeeGrid1.Editing);
+```
+
+### ClassOf
+
+```pascal
+function ClassOf(const AColumn: TColumn): TClass;
+```
+
+Returns the editor class to use for a specific column. Returns the column's custom editor class if set, otherwise returns the default `EditorClass`.
+
+**Parameters**:
+- `AColumn`: The column to get the editor class for
+
+**Returns**: The `TClass` of the editor control
+
+**Example**:
+```pascal
+var
+  EditorClass: TClass;
+begin
+  EditorClass := TeeGrid1.Editing.ClassOf(TeeGrid1.Columns[0]);
+end;
+```
+
+## TTextEditing Class
+
+The `TTextEditing` class configures text-specific editing behavior.
+
+### Properties
+
+#### Selected
+
+```pascal
+property Selected: Boolean read FSelected write SetSelected default True;
+```
+
+When `True`, all text in the editor is selected when editing begins.
+
+**Default**: `True`
+
+## TEditingEnter Enumeration
+
+Defines the behavior when the Enter key is pressed during editing.
+
+```pascal
+TEditingEnter = (NextCell, NextRow, SameCell);
+```
+
+- **NextCell** - Move to the next editable cell in the current row
+- **NextRow** - Move to the same column in the next row
+- **SameCell** - Stay in the current cell (multi-line editing)
+
+## Usage Examples
+
+### Basic Editing Configuration
+
+```pascal
+procedure ConfigureBasicEditing(Grid: TTeeGrid);
+begin
+  with Grid.Editing do
+  begin
+    AutoEdit := True;           // Type to start editing
+    DoubleClick := False;       // Single-click to edit
+    EnterKey := TEditingEnter.NextRow;  // Enter moves down
+    Text.Selected := True;      // Select all text when editing
+  end;
+end;
+```
+
+### Always-Visible Editor
+
+```pascal
+procedure SetupAlwaysVisibleEditor(Grid: TTeeGrid);
+begin
+  Grid.Editing.AlwaysVisible := True;
+  Grid.Editing.AutoEdit := True;
+end;
+```
+
+### Excel-Like Navigation
+
+```pascal
+procedure SetupExcelLikeNavigation(Grid: TTeeGrid);
+begin
+  with Grid.Editing do
+  begin
+    DoubleClick := True;        // Double-click to edit
+    EnterKey := TEditingEnter.NextRow;  // Enter moves down like Excel
+    Text.Selected := True;      // Select all text
+  end;
+end;
+```
+
+### Custom Editor for Specific Column
+
+```pascal
+procedure SetupCustomColumnEditor(Grid: TTeeGrid);
+var
+  DateColumn: TColumn;
+begin
+  DateColumn := Grid.Columns.Add('Birth Date');
+  DateColumn.EditorClass := TDateTimePicker;  // Use date picker for this column
+  
+  // Grid uses default editor (TEdit) for other columns
+end;
+```
+
+### Disable Editing for Entire Grid
+
+```pascal
+procedure DisableEditing(Grid: TTeeGrid);
+begin
+  Grid.ReadOnly := True;  // This disables editing at the grid level
+end;
+```
+
+### Disable Editing for Specific Column
+
+```pascal
+procedure DisableColumnEditing(Grid: TTeeGrid; ColIndex: Integer);
+begin
+  Grid.Columns[ColIndex].ReadOnly := True;
+end;
+```
+
+### Checking Edit State
+
+```pascal
+procedure CheckEditState(Grid: TTeeGrid);
+begin
+  if Grid.Editing.Active then
+  begin
+    ShowMessage('Editing in progress');
+    // Stop editing programmatically
+    Grid.StopEditor;
+  end
+  else
+  begin
+    ShowMessage('No active editing');
+  end;
+end;
+```
+
+### Starting Edit Programmatically
+
+```pascal
+procedure StartEditingCell(Grid: TTeeGrid; ColIndex, RowIndex: Integer);
+begin
+  // Select the cell first
+  Grid.Selected.Column := Grid.Columns[ColIndex];
+  Grid.Selected.Row := RowIndex;
+  
+  // Start editing (implementation varies by platform - VCL/FMX)
+  // This is typically done through the grid's StartEditor method
+end;
+```
+
+### Multi-Line Text Editing
+
+```pascal
+procedure SetupMultiLineEditing(Grid: TTeeGrid; MemoColumn: TColumn);
+begin
+  // Configure column for multi-line editing
+  MemoColumn.EditorClass := TMemo;
+  
+  // Set Enter key to stay in same cell for multi-line input
+  Grid.Editing.EnterKey := TEditingEnter.SameCell;
+end;
+```
+
+### Conditional Editing
+
+```pascal
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  TeeGrid1.Editing.AutoEdit := False;
+  TeeGrid1.Editing.DoubleClick := True;
+  
+  // Columns 0-2 are editable
+  TeeGrid1.Columns[0].ReadOnly := False;
+  TeeGrid1.Columns[1].ReadOnly := False;
+  TeeGrid1.Columns[2].ReadOnly := False;
+  
+  // Column 3 is read-only (calculated field)
+  TeeGrid1.Columns[3].ReadOnly := True;
+end;
+```
+
+## Editor Workflow
+
+The typical workflow for cell editing:
+
+1. **Activation** - User double-clicks (or single-clicks) a cell, or types when `AutoEdit` is enabled
+2. **Editor Display** - Grid creates and displays the appropriate editor control
+3. **Editing** - User modifies the cell content
+4. **Commit** - User presses Enter or Tab, or clicks another cell
+5. **Validation** - Grid validates and saves the new value
+6. **Navigation** - Based on `EnterKey` setting, focus moves to next cell
+
+## Important Notes
+
+<Note>
+Editing only works on columns that have `ReadOnly` set to `False`. The grid-level `ReadOnly` property overrides all column settings.
+</Note>
+
+<Warning>
+When using custom editor classes, ensure they are properly registered and compatible with your application framework (VCL or FireMonkey).
+</Warning>
+
+<Tip>
+For data-bound grids connected to TDataSet, the grid automatically handles data posting and cancellation. For virtual data sources, you may need to implement custom save logic.
+</Tip>
+
+## See Also
+
+- [TGridSelection](/api/tgridselection) - Cell selection management
+- [TGridBands](/api/tgridbands) - Grid bands for headers and footers
+- [TIndicator](/api/tindicator) - Grid row indicator column

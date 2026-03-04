@@ -1,0 +1,506 @@
+---
+title: TGridDataStrings
+description: String-based grid data classes for TStringGrid emulation and virtual mode
+---
+
+## Overview
+
+The `Tee.GridData.Strings` unit provides two classes for working with string-based grid data:
+
+1. **TVirtualModeData** - A virtual data class for custom "Column x Row" grids using events
+2. **TStringsData** - A TStringGrid emulator that maintains an internal array of strings
+
+<Note>
+These classes are perfect for creating simple grids without database binding, similar to the traditional TStringGrid component.
+</Note>
+
+## TVirtualModeData
+
+A lightweight virtual data class that uses events to provide cell values on-demand.
+
+### Constructor
+
+<ResponseField name="Create" type="constructor">
+Creates a new virtual mode data instance.
+
+**Signature:**
+```pascal
+Constructor Create(const AColumns: Integer = 0; 
+                   const ARows: Integer = 0; 
+                   const DefaultWidth: Single = 0); virtual;
+```
+
+**Parameters:**
+- `AColumns` - Initial number of columns (default: 0)
+- `ARows` - Initial number of rows (default: 0)
+- `DefaultWidth` - Optional default column width for faster rendering (default: 0)
+
+**Example:**
+```pascal
+var
+  Data: TVirtualModeData;
+begin
+  // Create grid with 10 columns, 1000 rows, 60px column width
+  Data := TVirtualModeData.Create(10, 1000, 60);
+  TeeGrid1.Data := Data;
+end;
+```
+</ResponseField>
+
+### Properties
+
+<ResponseField name="Columns" type="Integer" default="0">
+Gets or sets the number of columns in the grid.
+
+**Example:**
+```pascal
+var
+  Data: TVirtualModeData;
+begin
+  Data := TVirtualModeData.Create;
+  Data.Columns := 5;
+  Data.Rows := 10;
+  TeeGrid1.Data := Data;
+end;
+```
+</ResponseField>
+
+<ResponseField name="Rows" type="Integer" default="0">
+Gets or sets the number of rows in the grid.
+
+**Example:**
+```pascal
+Data.Rows := 100; // Set to 100 rows
+```
+</ResponseField>
+
+<ResponseField name="Headers" type="String" indexed>
+Gets or sets the header text for a specific column.
+
+**Signature:**
+```pascal
+property Headers[const Column: Integer]: String read GetHeader write SetHeader;
+```
+
+**Parameters:**
+- `Column` - Zero-based column index
+
+**Example:**
+```pascal
+Data.Headers[0] := 'Name';
+Data.Headers[1] := 'Company';
+Data.Headers[2] := 'Email';
+```
+</ResponseField>
+
+<ResponseField name="ColumnList" type="TColumns" readonly>
+Provides read-only access to the internal columns collection.
+
+**Example:**
+```pascal
+var
+  Col: TColumn;
+begin
+  Col := Data.ColumnList[0];
+  ShowMessage(Col.Text);
+end;
+```
+</ResponseField>
+
+### Events
+
+<ResponseField name="OnGetValue" type="TOnVirtualData">
+Event fired when the grid needs to retrieve a cell value.
+
+**Signature:**
+```pascal
+TOnVirtualData = procedure(Sender: TObject;
+                           const AColumn: TColumn;
+                           const ARow: Integer;
+                           var AValue: String) of object;
+```
+
+**Parameters:**
+- `Sender` - The data object
+- `AColumn` - The column being queried
+- `ARow` - The row index
+- `AValue` - Output parameter - set this to the cell value
+
+**Example:**
+```pascal
+procedure TForm1.GetCellValue(Sender: TObject; const AColumn: TColumn; 
+  const ARow: Integer; var AValue: String);
+begin
+  AValue := Format('Cell[%d,%d]', [Data.IndexOf(AColumn), ARow]);
+end;
+
+// Setup:
+Data.OnGetValue := GetCellValue;
+```
+</ResponseField>
+
+<ResponseField name="OnSetValue" type="TOnVirtualData">
+Event fired when the grid needs to update a cell value.
+
+**Signature:**
+```pascal
+TOnVirtualData = procedure(Sender: TObject;
+                           const AColumn: TColumn;
+                           const ARow: Integer;
+                           var AValue: String) of object;
+```
+
+**Parameters:**
+- `Sender` - The data object
+- `AColumn` - The column being updated
+- `ARow` - The row index
+- `AValue` - The new cell value
+
+**Example:**
+```pascal
+procedure TForm1.SetCellValue(Sender: TObject; const AColumn: TColumn; 
+  const ARow: Integer; var AValue: String);
+begin
+  // Store value in your data structure
+  MyDataArray[ARow, Data.IndexOf(AColumn)] := AValue;
+end;
+
+// Setup:
+Data.OnSetValue := SetCellValue;
+```
+</ResponseField>
+
+### Methods
+
+<ResponseField name="Resize" type="procedure">
+Resizes the grid to the specified dimensions.
+
+**Signature:**
+```pascal
+procedure Resize(const AColumns, ARows: Integer);
+```
+
+**Parameters:**
+- `AColumns` - New number of columns
+- `ARows` - New number of rows
+
+**Example:**
+```pascal
+Data.Resize(10, 20); // Resize to 10 columns x 20 rows
+```
+</ResponseField>
+
+<ResponseField name="IndexOf" type="function">
+Returns the zero-based index of a column.
+
+**Signature:**
+```pascal
+function IndexOf(const AColumn: TColumn): Integer; inline;
+```
+
+**Parameters:**
+- `AColumn` - The column to find
+
+**Returns:**
+The column's index, or -1 if not found.
+</ResponseField>
+
+### Complete Example
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Strings;
+
+type
+  TForm1 = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  private
+    Data: TVirtualModeData;
+    procedure GetCell(Sender: TObject; const AColumn: TColumn; 
+      const ARow: Integer; var AValue: String);
+    procedure SetCell(Sender: TObject; const AColumn: TColumn; 
+      const ARow: Integer; var AValue: String);
+  end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+begin
+  // Create data with 10 columns, 1000 rows, 60px width
+  Data := TVirtualModeData.Create(10, 1000, 60);
+  
+  // Set headers
+  Data.Headers[0] := 'ID';
+  Data.Headers[1] := 'Name';
+  Data.Headers[2] := 'Email';
+  
+  // Hook up events
+  Data.OnGetValue := GetCell;
+  Data.OnSetValue := SetCell;
+  
+  // Assign to grid
+  TeeGrid1.Data := Data;
+end;
+
+procedure TForm1.GetCell(Sender: TObject; const AColumn: TColumn; 
+  const ARow: Integer; var AValue: String);
+var
+  ColIndex: Integer;
+begin
+  ColIndex := Data.IndexOf(AColumn);
+  
+  // Generate cell value
+  case ColIndex of
+    0: AValue := IntToStr(ARow + 1);  // ID
+    1: AValue := 'User ' + IntToStr(ARow + 1);  // Name
+    2: AValue := Format('user%d@example.com', [ARow + 1]);  // Email
+  else
+    AValue := Format('Data[%d,%d]', [ColIndex, ARow]);
+  end;
+end;
+
+procedure TForm1.SetCell(Sender: TObject; const AColumn: TColumn; 
+  const ARow: Integer; var AValue: String);
+begin
+  // Handle cell editing
+  ShowMessage(Format('Cell [%d,%d] set to: %s', 
+    [Data.IndexOf(AColumn), ARow, AValue]));
+end;
+```
+
+## TStringsData
+
+Derived from TVirtualModeData, this class maintains an internal array of strings for each cell, similar to TStringGrid.
+
+### Constructor
+
+<ResponseField name="Create" type="constructor">
+Creates a new strings data instance.
+
+**Signature:**
+```pascal
+Constructor Create(const AColumns: Integer = 0; const ARows: Integer = 0); 
+```
+
+**Parameters:**
+- `AColumns` - Initial number of columns (default: 0)
+- `ARows` - Initial number of rows (default: 0)
+
+**Example:**
+```pascal
+var
+  Data: TStringsData;
+begin
+  // Create with optional size
+  Data := TStringsData.Create(5, 4);
+  TeeGrid1.Data := Data;
+end;
+```
+</ResponseField>
+
+### Properties
+
+<ResponseField name="Cells" type="String" indexed default>
+Gets or sets the value of a specific cell. This is the default array property.
+
+**Signature:**
+```pascal
+property Cells[const Column, Row: Integer]: String read GetCell write SetCell; default;
+```
+
+**Parameters:**
+- `Column` - Zero-based column index
+- `Row` - Zero-based row index
+
+**Example:**
+```pascal
+var
+  Data: TStringsData;
+begin
+  Data := TStringsData.Create;
+  Data.Columns := 3;
+  Data.Rows := 2;
+  
+  // Set cell values using default property
+  Data[0, 0] := 'Name';
+  Data[1, 0] := 'Age';
+  Data[2, 0] := 'Email';
+  
+  Data[0, 1] := 'John';
+  Data[1, 1] := '30';
+  Data[2, 1] := 'john@example.com';
+  
+  // Read values
+  ShowMessage(Data[0, 1]); // Shows 'John'
+end;
+```
+</ResponseField>
+
+All properties from TVirtualModeData are also available (Columns, Rows, Headers, etc.).
+
+### Complete Example
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Strings;
+
+type
+  TForm1 = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  end;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  Data: TStringsData;
+  i: Integer;
+begin
+  // Create data
+  Data := TStringsData.Create;
+  
+  // Set size
+  Data.Columns := 5;
+  Data.Rows := 10;
+  
+  // Set headers
+  Data.Headers[0] := 'ID';
+  Data.Headers[1] := 'Company';
+  Data.Headers[2] := 'Contact';
+  Data.Headers[3] := 'Phone';
+  Data.Headers[4] := 'Email';
+  
+  // Fill data
+  for i := 0 to 9 do
+  begin
+    Data[0, i] := IntToStr(i + 1);
+    Data[1, i] := 'Company ' + IntToStr(i + 1);
+    Data[2, i] := 'Contact ' + IntToStr(i + 1);
+    Data[3, i] := '555-' + Format('%.4d', [1000 + i]);
+    Data[4, i] := Format('contact%d@company%d.com', [i + 1, i + 1]);
+  end;
+  
+  // Assign to grid
+  TeeGrid1.Data := Data;
+end;
+```
+
+### Dynamic Data Modification
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Strings;
+
+procedure TForm1.AddRow(const Name, Email: String);
+var
+  Data: TStringsData;
+  NewRow: Integer;
+begin
+  Data := TStringsData(TeeGrid1.Data);
+  
+  // Add a new row
+  NewRow := Data.Rows;
+  Data.Rows := Data.Rows + 1;
+  
+  // Set values
+  Data[0, NewRow] := IntToStr(NewRow + 1);
+  Data[1, NewRow] := Name;
+  Data[2, NewRow] := Email;
+  
+  // Refresh grid
+  TeeGrid1.Invalidate;
+end;
+
+procedure TForm1.DeleteRow(const ARow: Integer);
+var
+  Data: TStringsData;
+  i, j: Integer;
+begin
+  Data := TStringsData(TeeGrid1.Data);
+  
+  // Shift rows up
+  for i := ARow to Data.Rows - 2 do
+    for j := 0 to Data.Columns - 1 do
+      Data[j, i] := Data[j, i + 1];
+  
+  // Remove last row
+  Data.Rows := Data.Rows - 1;
+  
+  TeeGrid1.Invalidate;
+end;
+```
+
+### Importing from CSV
+
+```pascal
+uses
+  VCLTee.Grid, Tee.GridData.Strings, System.Classes, System.SysUtils;
+
+procedure TForm1.LoadFromCSV(const FileName: String);
+var
+  Data: TStringsData;
+  Lines: TStringList;
+  Row, Col: Integer;
+  Values: TArray<String>;
+begin
+  Data := TStringsData.Create;
+  Lines := TStringList.Create;
+  try
+    Lines.LoadFromFile(FileName);
+    
+    if Lines.Count = 0 then Exit;
+    
+    // First line = headers
+    Values := Lines[0].Split([',']);
+    Data.Columns := Length(Values);
+    for Col := 0 to High(Values) do
+      Data.Headers[Col] := Values[Col].Trim;
+    
+    // Remaining lines = data
+    Data.Rows := Lines.Count - 1;
+    for Row := 1 to Lines.Count - 1 do
+    begin
+      Values := Lines[Row].Split([',']);
+      for Col := 0 to Min(High(Values), Data.Columns - 1) do
+        Data[Col, Row - 1] := Values[Col].Trim;
+    end;
+    
+    TeeGrid1.Data := Data;
+  finally
+    Lines.Free;
+  end;
+end;
+```
+
+## Performance Comparison
+
+### TVirtualModeData
+
+**Pros:**
+- Minimal memory usage (no data stored internally)
+- Perfect for very large datasets
+- Data stays in your own data structures
+
+**Cons:**
+- Requires implementing event handlers
+- You manage data storage
+
+**Best for:** Large datasets (1M+ rows), computed values, data from external sources
+
+### TStringsData
+
+**Pros:**
+- Simple to use (like TStringGrid)
+- No event handlers needed
+- Easy data manipulation
+
+**Cons:**
+- Stores all data in memory
+- Higher memory usage for large datasets
+
+**Best for:** Small to medium datasets (up to 100K rows), simple grids, quick prototypes
+
+## See Also
+
+- [TVirtualData](/api/virtualdata) - Base virtual data class
+- [Strings Data Guide](/data/strings) - Complete guide to string-based grids
+- [Custom Virtual Data](/data/custom-virtual-data) - Creating custom data sources
+- [Basic Grid Example](/examples/basic-grid) - Simple grid examples

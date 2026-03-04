@@ -1,0 +1,249 @@
+---
+title: "TColumns"
+description: "Collection class that manages TColumn instances in a TeeGrid"
+---
+
+## Overview
+
+`TColumns` is a collection class that manages `TColumn` instances. It provides methods for adding, accessing, and organizing columns, and includes a `Spacing` property to control horizontal separation between columns.
+
+## Key Properties
+
+<ParamField path="Items[Index]" type="TColumn">
+  Access columns by numeric index.
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns[0]; // First column
+  end;
+  ```
+</ParamField>
+
+<ParamField path="Items[Name]" type="TColumn">
+  Access columns by name (header text).
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns['Customer Name'];
+  end;
+  ```
+  
+  <Note>This property is not available in Free Pascal (FPC).</Note>
+</ParamField>
+
+<ParamField path="Spacing" type="TCoordinate">
+  Horizontal separation between columns in pixels. Controls the gap between adjacent columns.
+  
+  ```pascal
+  Grid.Columns.Spacing.Value := 5; // 5 pixels between columns
+  ```
+</ParamField>
+
+<ParamField path="Parent" type="TColumn">
+  Returns the parent column if this is a sub-columns collection, or `nil` if this is a top-level columns collection.
+</ParamField>
+
+## Key Methods
+
+<ParamField path="Add" type="TColumn">
+  Creates and adds a new column to the collection.
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns.Add; // Add empty column
+  end;
+  ```
+</ParamField>
+
+<ParamField path="Add(AText)" type="TColumn">
+  Creates and adds a new column with the specified header text.
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns.Add('Product Name');
+  end;
+  ```
+</ParamField>
+
+<ParamField path="FindAt(X, MaxRight)" type="TColumn">
+  Returns the column at the specified X coordinate, or `nil` if no column is found.
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns.FindAt(100, Grid.Width);
+    if Assigned(Col) then
+      ShowMessage('Column: ' + Col.Header.Text);
+  end;
+  ```
+</ParamField>
+
+<ParamField path="FindFirst(AName)" type="TColumn">
+  Finds the first column with the specified name (case-insensitive search).
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns.FindFirst('customer');
+  end;
+  ```
+</ParamField>
+
+<ParamField path="FirstVisible" type="TColumn">
+  Returns the first visible column in the collection.
+  
+  ```pascal
+  var
+    Col: TColumn;
+  begin
+    Col := Grid.Columns.FirstVisible;
+  end;
+  ```
+</ParamField>
+
+<ParamField path="LevelCount" type="Integer">
+  Returns the maximum hierarchical depth of columns. Returns 1 for flat columns, 2 if any column has sub-columns, etc.
+  
+  ```pascal
+  var
+    Depth: Integer;
+  begin
+    Depth := Grid.Columns.LevelCount;
+  end;
+  ```
+</ParamField>
+
+<ParamField path="HasSpacing" type="Boolean">
+  Returns `true` if column spacing is greater than zero.
+</ParamField>
+
+## Events
+
+<ParamField path="OnMoved" type="TColumnMovedEvent">
+  Event triggered when a column is moved from one position to another.
+  
+  ```pascal
+  procedure TForm1.ColumnsMoved(const AColumn: TColumn; 
+    const AOld, ANew: Integer);
+  begin
+    ShowMessage(Format('Column "%s" moved from %d to %d',
+      [AColumn.Header.Text, AOld, ANew]));
+  end;
+  
+  // Assign event
+  Grid.Columns.OnMoved := ColumnsMoved;
+  ```
+</ParamField>
+
+## Usage Examples
+
+### Adding Columns
+
+```pascal
+begin
+  // Add multiple columns
+  Grid.Columns.Add('ID');
+  Grid.Columns.Add('Name');
+  Grid.Columns.Add('Email');
+  Grid.Columns.Add('Phone');
+  
+  // Configure spacing
+  Grid.Columns.Spacing.Value := 10;
+end;
+```
+
+### Accessing Columns
+
+```pascal
+var
+  Col: TColumn;
+  i: Integer;
+begin
+  // Access by index
+  Col := Grid.Columns[0];
+  Col.Width.Value := 100;
+  
+  // Access by name
+  Col := Grid.Columns['Name'];
+  Col.ReadOnly := True;
+  
+  // Iterate through all columns
+  for i := 0 to Grid.Columns.Count - 1 do
+  begin
+    Col := Grid.Columns[i];
+    // Process column
+  end;
+end;
+```
+
+### Hierarchical Columns
+
+```pascal
+var
+  ParentCol: TColumn;
+begin
+  // Create parent column with sub-columns
+  ParentCol := Grid.Columns.Add('Full Name');
+  ParentCol.Items.Add('First Name');
+  ParentCol.Items.Add('Last Name');
+  
+  ParentCol := Grid.Columns.Add('Address');
+  ParentCol.Items.Add('Street');
+  ParentCol.Items.Add('City');
+  ParentCol.Items.Add('Zip Code');
+  
+  // Check hierarchical depth
+  ShowMessage('Column levels: ' + IntToStr(Grid.Columns.LevelCount));
+end;
+```
+
+### Finding Columns
+
+```pascal
+var
+  Col: TColumn;
+begin
+  // Find by name (case-insensitive)
+  Col := Grid.Columns.FindFirst('customer');
+  if Assigned(Col) then
+    Col.Visible := False;
+  
+  // Get first visible column
+  Col := Grid.Columns.FirstVisible;
+  if Assigned(Col) then
+    ShowMessage('First visible: ' + Col.Header.Text);
+end;
+```
+
+### Column Spacing
+
+```pascal
+begin
+  // Set column spacing
+  Grid.Columns.Spacing.Value := 5;
+  
+  // Check if spacing is enabled
+  if Grid.Columns.HasSpacing then
+    ShowMessage('Columns have spacing');
+end;
+```
+
+## Design-Time Support
+
+The `TColumns` class includes internal support for design-time column editing through the `OnGetFields` and `OnSetField` events. These are used by the IDE's column editor dialog.
+
+## Related Classes
+
+- [TColumn](/api/tcolumn) - Individual column class
+- [TRows](/api/trows) - Grid rows class
+- [TRowGroup](/api/trowgroup) - Row group with columns

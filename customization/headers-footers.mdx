@@ -1,0 +1,533 @@
+---
+title: "Headers and Footers"
+description: "Configure grid headers with sorting, multiple levels, and custom footer bands"
+---
+
+TeeGrid supports customizable headers and footers through the grid bands system. Headers display column names with optional sorting, resizing, and multi-level hierarchies. Footers can show totals, summaries, or custom content.
+
+## Grid Header
+
+The grid header is a special band that displays column names and provides user interaction for sorting and resizing columns.
+
+### Basic Header Configuration
+
+```pascal
+// Access the header band
+var
+  Header: TColumnHeaderBand;
+begin
+  Header := TeeGrid1.Header;
+  
+  // Show/hide header
+  Header.Visible := True;
+  
+  // Set header height
+  Header.Height.Automatic := False;
+  Header.Height.Value := 30;
+  Header.Height.Units := TSizeUnits.Pixels;
+end;
+```
+
+### Header Styling
+
+```pascal
+// Style the entire header
+with TeeGrid1.Header.Format do
+begin
+  // Background color
+  Brush.Color := TColors.Navy;
+  Brush.Visible := True;
+  
+  // Font settings
+  Font.Color := TColors.White;
+  Font.Size := 11;
+  Font.Style := [fsBold];
+  
+  // Border
+  Stroke.Color := TColors.DkGray;
+  Stroke.Size := 1;
+  Stroke.Visible := True;
+end;
+```
+
+### Column Header Text
+
+Customize individual column headers:
+
+```pascal
+// Set column header text
+TeeGrid1.Columns['FirstName'].Header.Text := 'First Name';
+TeeGrid1.Columns['LastName'].Header.Text := 'Last Name';
+TeeGrid1.Columns['DOB'].Header.Text := 'Date of Birth';
+
+// Style individual column header
+with TeeGrid1.Columns['FirstName'].Header do
+begin
+  ParentFormat := False;  // Use custom formatting
+  
+  Format.Brush.Color := TColors.SkyBlue;
+  Format.Font.Color := TColors.Navy;
+  Format.Font.Style := [fsBold, fsItalic];
+end;
+```
+
+## Header Sorting
+
+### Enable Sorting
+
+Enable column sorting through header clicks:
+
+```pascal
+// Enable sortable header
+TeeGrid1.Header.Sortable := True;
+
+// Handle sort event
+TeeGrid1.OnColumnSort := procedure(Sender: TObject; const AColumn: TColumn)
+begin
+  // Implement your sorting logic
+  SortDataByColumn(AColumn);
+end;
+```
+
+### Custom Sort Indicators
+
+The header displays sort indicators (arrows) for sorted columns:
+
+```pascal
+// Access sort render
+var
+  SortRender: TSortableHeader;
+begin
+  SortRender := TeeGrid1.Header.SortRender as TSortableHeader;
+  
+  // Configure sort indicator size
+  SortRender.Size := 8;
+  
+  // Style sort indicator
+  SortRender.Format.Stroke.Color := TColors.White;
+  SortRender.Format.Stroke.Size := 2;
+  SortRender.Format.Brush.Color := TColors.Transparent;
+end;
+```
+
+### Sort State Control
+
+Control and query sort state programmatically:
+
+```pascal
+type
+  TSortState = (None, Ascending, Descending);
+
+// Check if column can be sorted
+function CanSort(const AColumn: TColumn): Boolean;
+begin
+  Result := TeeGrid1.Header.CanSort(AColumn);
+end;
+
+// Implement custom sort state logic
+TeeGrid1.Header.SortRender.OnSortState := 
+  procedure(const AColumn: TColumn; var State: TSortState)
+begin
+  // Return current sort state for this column
+  State := GetCurrentSortState(AColumn);
+end;
+
+// Handle sort event with state toggle
+TeeGrid1.Header.SortRender.OnSortBy := 
+  procedure(Sender: TObject; const AColumn: TColumn)
+begin
+  ToggleSortState(AColumn);
+  TeeGrid1.Invalidate;
+end;
+```
+
+## Multi-Level Headers
+
+Create hierarchical column headers using sub-columns:
+
+```pascal
+// Create parent column with sub-columns
+var
+  PersonColumn, AddressColumn: TColumn;
+begin
+  // Person column with First and Last name sub-columns
+  PersonColumn := TeeGrid1.Columns.Add('Person');
+  PersonColumn.Items.Add('First Name');
+  PersonColumn.Items.Add('Last Name');
+  
+  // Address column with City and State sub-columns
+  AddressColumn := TeeGrid1.Columns.Add('Address');
+  AddressColumn.Items.Add('City');
+  AddressColumn.Items.Add('State');
+  AddressColumn.Items.Add('ZIP');
+  
+  // The header will automatically show multiple levels
+end;
+```
+
+### Row Lines Between Header Levels
+
+Style the lines separating header levels:
+
+```pascal
+// Configure horizontal lines between header rows
+with TeeGrid1.Header.RowLines do
+begin
+  Visible := True;
+  Color := TColors.DkGray;
+  Size := 1;
+  Style := TStrokeStyle.Solid;
+end;
+```
+
+## Column Interaction
+
+### Column Resizing
+
+Allow users to resize columns by dragging:
+
+```pascal
+// Enable column resizing
+TeeGrid1.Header.AllowResize := True;
+
+// Set resize tolerance (hit test area in pixels)
+TColumnBand.ResizeTolerance := 5;
+
+// Handle resize event
+TeeGrid1.Header.OnColumnResized := procedure(Sender: TObject)
+begin
+  // Column was resized
+  SaveColumnWidths;
+end;
+```
+
+### Column Dragging
+
+Allow users to reorder columns by dragging:
+
+```pascal
+// Enable column dragging
+TeeGrid1.Header.Drag.Allow := True;
+
+// Style the drag indicators
+with TeeGrid1.Header.Drag do
+begin
+  // Source column highlight while dragging
+  Source.Color := TColorHelper.From(TColors.Blue, 0.3);
+  Source.Visible := True;
+  
+  // Target position indicator
+  Target.Color := TColorHelper.From(TColors.Green, 0.5);
+  Target.Visible := True;
+end;
+
+// Handle column moved event
+TeeGrid1.Columns.OnMoved := procedure(const AColumn: TColumn; 
+  const AOld, ANew: Integer)
+begin
+  ShowMessage(Format('Column moved from %d to %d', [AOld, ANew]));
+end;
+```
+
+### Hover Effects
+
+Highlight columns on mouse hover:
+
+```pascal
+// Configure hover effect
+with TeeGrid1.Header.Hover do
+begin
+  Visible := True;
+  ParentFont := True;  // Use header font
+  
+  // Highlight color
+  Format.Brush.Color := TColorHelper.From(TColors.Yellow, 0.2);
+  Format.Brush.Visible := True;
+end;
+```
+
+### Selected Column
+
+Highlight the selected column:
+
+```pascal
+// Style selected column in header
+with TeeGrid1.Header.Selected do
+begin
+  Visible := True;
+  ParentFont := False;
+  
+  Format.Brush.Color := TColors.Navy;
+  Format.Font.Color := TColors.White;
+  Format.Font.Style := [fsBold];
+end;
+
+// Set selected column programmatically
+TeeGrid1.Header.SelectedColumn := TeeGrid1.Columns['Name'];
+```
+
+## Header Margins
+
+Control spacing inside header cells:
+
+```pascal
+with TeeGrid1.Header.Margins do
+begin
+  Left.Value := 8;
+  Right.Value := 8;
+  Top.Value := 4;
+  Bottom.Value := 4;
+end;
+```
+
+## Footer Bands
+
+Add footer bands to display summaries, totals, or custom content.
+
+### Adding Text Footers
+
+```pascal
+// Add a simple text footer
+var
+  Footer: TTextBand;
+begin
+  Footer := TeeGrid1.Footer.AddText('Total Records: 1,234');
+  
+  // Style the footer
+  Footer.Format.Brush.Color := TColors.Gainsboro;
+  Footer.Format.Font.Style := [fsBold];
+  Footer.Height.Value := 25;
+end;
+```
+
+### Multiple Footer Bands
+
+```pascal
+// Add multiple footer bands
+var
+  SummaryBand, TotalBand: TTextBand;
+begin
+  // Summary band
+  SummaryBand := TeeGrid1.Footer.AddText('Summary Information');
+  SummaryBand.Format.Brush.Color := TColors.LightGray;
+  
+  // Total band
+  TotalBand := TeeGrid1.Footer.AddText('Grand Total: $12,345.67');
+  TotalBand.Format.Brush.Color := TColors.DkGray;
+  TotalBand.Format.Font.Color := TColors.White;
+  TotalBand.Format.Font.Style := [fsBold];
+  TotalBand.Height.Value := 30;
+end;
+```
+
+### Custom Footer Bands
+
+Create custom footer bands with specific functionality:
+
+```pascal
+type
+  TTotalsBand = class(TGridBand)
+  private
+    FTotalAmount: Currency;
+    FTotalCount: Integer;
+  protected
+    function CreateRender: TRender; override;
+  public
+    procedure CalcHeight(const APainter: TPainter; 
+      const ATotal: Single); override;
+    procedure Paint(var AData: TRenderData; 
+      const ARender: TRender); override;
+    
+    property TotalAmount: Currency read FTotalAmount write FTotalAmount;
+    property TotalCount: Integer read FTotalCount write FTotalCount;
+  end;
+
+function TTotalsBand.CreateRender: TRender;
+begin
+  Result := TTextRender.Create(Changed);
+end;
+
+procedure TTotalsBand.CalcHeight(const APainter: TPainter; 
+  const ATotal: Single);
+begin
+  // Set fixed height
+  Height.Value := 30;
+  inherited;
+end;
+
+procedure TTotalsBand.Paint(var AData: TRenderData; 
+  const ARender: TRender);
+var
+  Text: string;
+begin
+  // Build summary text
+  Text := Format('Count: %d | Total: %s', 
+    [FTotalCount, FormatCurrency(FTotalAmount)]);
+  
+  AData.Data := Text;
+  
+  // Paint using renderer
+  inherited Paint(AData, ARender);
+end;
+
+// Usage
+var
+  TotalsBand: TTotalsBand;
+begin
+  TotalsBand := TTotalsBand.Create(TeeGrid1.Footer);
+  TotalsBand.TotalCount := 100;
+  TotalsBand.TotalAmount := 12345.67;
+  
+  TeeGrid1.Footer.Add(TotalsBand);
+end;
+```
+
+### Footer Visibility
+
+```pascal
+// Show/hide entire footer
+TeeGrid1.Footer.Visible := True;
+
+// Show/hide individual footer bands
+TeeGrid1.Footer[0].Visible := False;
+```
+
+## Complete Example: Styled Header with Footers
+
+```pascal
+procedure TForm1.SetupGridHeaderFooter;
+var
+  Footer: TTextBand;
+begin
+  // Configure Header
+  with TeeGrid1.Header do
+  begin
+    Visible := True;
+    Sortable := True;
+    AllowResize := True;
+    
+    // Header styling
+    Format.Brush.Color := TColors.Navy;
+    Format.Font.Color := TColors.White;
+    Format.Font.Size := 11;
+    Format.Font.Style := [fsBold];
+    
+    // Row lines for multi-level headers
+    RowLines.Visible := True;
+    RowLines.Color := TColors.White;
+    RowLines.Size := 1;
+    
+    // Hover effect
+    Hover.Visible := True;
+    Hover.Format.Brush.Color := TColorHelper.From(TColors.SkyBlue, 0.3);
+    
+    // Drag and drop
+    Drag.Allow := True;
+    Drag.Source.Color := TColorHelper.From(TColors.Yellow, 0.4);
+    Drag.Target.Color := TColorHelper.From(TColors.Green, 0.5);
+    
+    // Margins
+    Margins.Left.Value := 8;
+    Margins.Right.Value := 8;
+  end;
+  
+  // Set column headers
+  TeeGrid1.Columns['Name'].Header.Text := 'Customer Name';
+  TeeGrid1.Columns['Amount'].Header.Text := 'Order Amount';
+  TeeGrid1.Columns['Date'].Header.Text := 'Order Date';
+  
+  // Add footer with totals
+  Footer := TeeGrid1.Footer.AddText(
+    Format('Total Orders: %d | Total Amount: %s', 
+      [GetOrderCount, FormatCurrency(GetTotalAmount)]));
+  
+  with Footer do
+  begin
+    Height.Value := 28;
+    Format.Brush.Color := TColors.Gainsboro;
+    Format.Font.Style := [fsBold];
+    Format.Font.Size := 10;
+  end;
+  
+  TeeGrid1.Footer.Visible := True;
+end;
+```
+
+## Header Events
+
+```pascal
+// Column resize event
+TeeGrid1.Header.OnColumnResized := procedure(Sender: TObject)
+begin
+  // Save column widths to configuration
+  SaveColumnWidths;
+end;
+
+// Column click event
+TeeGrid1.Header.OnClick := procedure(Sender: TObject)
+begin
+  ShowMessage('Header clicked');
+end;
+
+// Sort events
+with TeeGrid1.Header.SortRender as TSortableHeader do
+begin
+  // Can this column be sorted?
+  OnCanSort := procedure(const AColumn: TColumn; var CanSort: Boolean)
+  begin
+    CanSort := not AColumn.ReadOnly;
+  end;
+  
+  // Sort by column
+  OnSortBy := procedure(Sender: TObject; const AColumn: TColumn)
+  begin
+    PerformSort(AColumn);
+  end;
+  
+  // Get current sort state
+  OnSortState := procedure(const AColumn: TColumn; var State: TSortState)
+  begin
+    State := FCurrentSortState[AColumn];
+  end;
+end;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Header height for multi-level columns">
+    When using sub-columns, the header height automatically adjusts to accommodate all levels. Use `RowLines` to visually separate levels.
+  </Accordion>
+  
+  <Accordion title="Consistent header styling">
+    Set `ParentFormat := True` for column headers to maintain consistent styling unless you need column-specific formatting.
+  </Accordion>
+  
+  <Accordion title="Footer updates">
+    Update footer bands when data changes. Consider using calculated fields or events to keep totals current.
+  </Accordion>
+  
+  <Accordion title="Resize tolerance">
+    Adjust `ResizeTolerance` based on your UI density. Higher values (5-8) make it easier for users to grab column edges.
+  </Accordion>
+</AccordionGroup>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Columns" icon="table-columns" href="/concepts/columns">
+    Learn about column configuration and properties
+  </Card>
+  
+  <Card title="Sorting" icon="arrow-down-a-z" href="/features/sorting">
+    Implement data sorting in your grid
+  </Card>
+  
+  <Card title="Custom Bands" icon="layer-group" href="/features/custom-bands">
+    Create custom grid bands
+  </Card>
+  
+  <Card title="TColumnHeaderBand API" icon="code" href="/api/tgridbands">
+    Complete API reference for header bands
+  </Card>
+</CardGroup>

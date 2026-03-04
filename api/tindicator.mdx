@@ -1,0 +1,372 @@
+---
+title: TIndicator
+description: Special column that displays visual indicators for row state (browsing, editing, or inserting)
+---
+
+## Overview
+
+The `TIndicator` class is a special column that appears as the leftmost column in a TeeGrid, displaying visual symbols to indicate the current state of each row. It shows whether a row is being browsed, edited, or is a new insert row.
+
+## Class Hierarchy
+
+```
+TVisibleTextRender
+  └── TIndicator
+```
+
+## Visual Indicators
+
+The indicator column displays different symbols based on the row state:
+
+- **Browse** - Triangle pointing right (▶) for the current row
+- **Edit** - Pencil icon indicating the row is being edited
+- **Insert** - Asterisk (*) indicating a new row being inserted
+
+## Properties
+
+### Visible
+
+```pascal
+property Visible: Boolean; // Inherited from TVisibleTextRender
+```
+
+Controls whether the indicator column is visible.
+
+**Default**: Inherited from parent class
+
+**Example**:
+```pascal
+TeeGrid1.Indicator.Visible := True;
+```
+
+### Width
+
+```pascal
+property Width: TColumnWidth read FWidth write SetWidth;
+```
+
+The width of the indicator column.
+
+**Default**: `DefaultWidth` (10 pixels)
+
+**Example**:
+```pascal
+TeeGrid1.Indicator.Width.Pixels := 20;
+```
+
+### Format
+
+```pascal
+property Format: TFormat; // Inherited from TVisibleTextRender
+```
+
+The visual formatting (brush, stroke, font) for the indicator column.
+
+**Example**:
+```pascal
+TeeGrid1.Indicator.Format.Brush.Color := clLightBlue;
+TeeGrid1.Indicator.Format.Stroke.Color := clBlue;
+```
+
+### Font
+
+```pascal
+property Font: TFont; // Inherited from TVisibleTextRender
+```
+
+The font used for indicator symbols.
+
+**Example**:
+```pascal
+TeeGrid1.Indicator.Font.Color := clNavy;
+TeeGrid1.Indicator.Font.Size := 10;
+```
+
+## Constants
+
+### DefaultWidth
+
+```pascal
+const DefaultWidth = 10;
+```
+
+The default width of the indicator column in pixels.
+
+## Methods
+
+### Constructor Create
+
+```pascal
+Constructor Create(const AChanged: TNotifyEvent); override;
+```
+
+Creates a new `TIndicator` instance.
+
+**Parameters**:
+- `AChanged`: Event handler called when indicator properties change
+
+### Assign
+
+```pascal
+procedure Assign(Source: TPersistent); override;
+```
+
+Copies indicator properties from another persistent object.
+
+**Parameters**:
+- `Source`: The source object to copy from
+
+**Example**:
+```pascal
+TeeGrid2.Indicator.Assign(TeeGrid1.Indicator);
+```
+
+### Paint
+
+```pascal
+procedure Paint(var AData: TRenderData); override;
+```
+
+Paints the indicator symbol for the current row state.
+
+**Parameters**:
+- `AData`: Rendering data containing painter and bounds information
+
+## TIndicatorState Enumeration
+
+Defines the possible states for the indicator.
+
+```pascal
+TIndicatorState = (Browse, Edit, Insert);
+```
+
+- **Browse** - Normal browsing mode (shows triangle)
+- **Edit** - Row is being edited (shows pencil icon)
+- **Insert** - New row is being inserted (shows asterisk)
+
+## Usage Examples
+
+### Enabling the Indicator
+
+```pascal
+procedure EnableIndicator(Grid: TTeeGrid);
+begin
+  Grid.Indicator.Visible := True;
+  Grid.Indicator.Width.Pixels := 15;
+end;
+```
+
+### Customizing Indicator Appearance
+
+```pascal
+procedure CustomizeIndicator(Grid: TTeeGrid);
+begin
+  with Grid.Indicator do
+  begin
+    Visible := True;
+    Width.Pixels := 20;
+    
+    // Set background color
+    Format.Brush.Color := clSkyBlue;
+    
+    // Set border
+    Format.Stroke.Color := clBlue;
+    Format.Stroke.Size := 1;
+    
+    // Set symbol color
+    Font.Color := clNavy;
+    Font.Size := 10;
+  end;
+end;
+```
+
+### Hiding the Indicator
+
+```pascal
+procedure HideIndicator(Grid: TTeeGrid);
+begin
+  Grid.Indicator.Visible := False;
+end;
+```
+
+### Checking Indicator State
+
+```pascal
+procedure CheckIndicatorState(Grid: TTeeGrid);
+begin
+  // The State property is protected and managed internally by the grid
+  // It changes based on editing operations
+  
+  if Grid.Editing.Active then
+    ShowMessage('Indicator shows Edit or Insert state')
+  else
+    ShowMessage('Indicator shows Browse state');
+end;
+```
+
+### Complete Indicator Setup
+
+```pascal
+procedure SetupIndicatorColumn(Grid: TTeeGrid);
+begin
+  with Grid.Indicator do
+  begin
+    // Make indicator visible
+    Visible := True;
+    
+    // Set custom width
+    Width.Pixels := 18;
+    
+    // Light blue background
+    Format.Brush.Color := clMoneyGreen;
+    Format.Brush.Visible := True;
+    
+    // Dark border on right side
+    Format.Stroke.Color := clGray;
+    Format.Stroke.Size := 1;
+    Format.Stroke.Visible := True;
+    
+    // Dark blue symbols
+    Font.Color := clNavy;
+    Font.Size := 9;
+    Font.Style := [fsBold];
+  end;
+end;
+```
+
+### Database-Style Grid
+
+```pascal
+procedure CreateDatabaseStyleGrid(Grid: TTeeGrid);
+begin
+  // Enable indicator for database-like appearance
+  Grid.Indicator.Visible := True;
+  Grid.Indicator.Width.Pixels := 16;
+  Grid.Indicator.Format.Brush.Color := clBtnFace;
+  
+  // Enable editing
+  Grid.Editing.AutoEdit := True;
+  
+  // The indicator will automatically show:
+  // - Triangle for current row when browsing
+  // - Pencil when editing a row
+  // - Asterisk when inserting a new row
+end;
+```
+
+### Coordinating with Selection
+
+```pascal
+procedure SetupGridWithIndicatorAndSelection(Grid: TTeeGrid);
+begin
+  // Configure indicator
+  Grid.Indicator.Visible := True;
+  Grid.Indicator.Width.Pixels := 18;
+  Grid.Indicator.Format.Brush.Color := clInfoBk;
+  
+  // Configure selection to highlight full rows
+  Grid.Selected.FullRow := True;
+  Grid.Selected.Format.Brush.Color := clHighlight;
+  Grid.Selected.Font.Color := clWhite;
+  
+  // The indicator and selection work together to show:
+  // - Which row is current (indicator triangle)
+  // - Full row highlighting (selection)
+end;
+```
+
+## Integration with Grid Operations
+
+The indicator automatically updates its display based on grid operations:
+
+### Browse Mode
+
+When navigating through rows without editing:
+- Shows a triangle (▶) pointing to the current row
+- Updates automatically as selection changes
+
+### Edit Mode
+
+When editing begins (double-click, F2, or AutoEdit):
+- Indicator changes to show a pencil icon
+- Indicates the row is in edit mode
+
+### Insert Mode
+
+When inserting a new row (for data-bound grids):
+- Indicator shows an asterisk (*)
+- Indicates a new row being added
+
+## Design Patterns
+
+### Spreadsheet-Style Grid
+
+```pascal
+procedure ConfigureSpreadsheetStyle(Grid: TTeeGrid);
+begin
+  Grid.Indicator.Visible := False;  // No indicator in spreadsheets
+  Grid.Selected.FullRow := False;   // Cell-level selection
+  Grid.Editing.AutoEdit := True;
+end;
+```
+
+### Database Grid Style
+
+```pascal
+procedure ConfigureDatabaseStyle(Grid: TTeeGrid);
+begin
+  Grid.Indicator.Visible := True;   // Show row indicator
+  Grid.Indicator.Width.Pixels := 16;
+  Grid.Selected.FullRow := True;    // Full row selection
+  Grid.Editing.DoubleClick := True;
+end;
+```
+
+### Report/Read-Only Style
+
+```pascal
+procedure ConfigureReportStyle(Grid: TTeeGrid);
+begin
+  Grid.Indicator.Visible := False;  // No indicator needed
+  Grid.ReadOnly := True;            // No editing
+  Grid.Selected.Format.Brush.Color := clSilver;
+end;
+```
+
+## Important Notes
+
+<Note>
+The indicator column is always positioned as the leftmost column in the grid and cannot be moved or reordered.
+</Note>
+
+<Tip>
+The indicator width should be kept relatively small (10-20 pixels) to maximize space for data columns.
+</Tip>
+
+<Warning>
+The indicator state (Browse, Edit, Insert) is managed internally by the grid and should not be modified directly. It updates automatically based on grid operations.
+</Warning>
+
+## Properties Summary Table
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `Visible` | Boolean | - | Controls indicator visibility |
+| `Width` | TColumnWidth | 10 pixels | Width of the indicator column |
+| `Format` | TFormat | - | Visual formatting (brush, stroke) |
+| `Font` | TFont | - | Font for indicator symbols |
+
+## State Symbols Reference
+
+| State | Symbol | Meaning |
+|-------|--------|----------|
+| Browse | ▶ | Current row in browse mode |
+| Edit | ✎ | Row is being edited |
+| Insert | * | New row being inserted |
+
+## See Also
+
+- [TGridSelection](/api/tgridselection) - Cell selection management
+- [TGridEditing](/api/tgridediting) - Cell editing configuration
+- [TGridBands](/api/tgridbands) - Grid bands for headers and footers
+- [TColumn](/api/tcolumn) - Column configuration

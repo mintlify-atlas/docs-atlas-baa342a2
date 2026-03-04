@@ -1,0 +1,654 @@
+---
+title: "Custom Virtual Data"
+description: "Create custom TVirtualData implementations for specialized data sources and behaviors"
+---
+
+## Overview
+
+When built-in data classes don't fit your needs, create a custom `TVirtualData` descendant. This gives you complete control over:
+
+- Data source and storage
+- Column generation and configuration  
+- Cell value retrieval and editing
+- Performance optimization for your specific use case
+
+<Info>
+All TeeGrid data sources inherit from `TVirtualData`. Understanding this base class unlocks the full power of the grid.
+</Info>
+
+## TVirtualData Base Class
+
+The abstract base class that all data sources inherit from:
+
+```pascal
+type
+  TVirtualData = class abstract
+  public
+    // Abstract methods you MUST override:
+    function Count: Integer; virtual; abstract;
+    procedure AddColumns(const AColumns: TColumns); virtual; abstract;
+    
+    // Virtual methods you SHOULD override:
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; virtual;
+    procedure Load(const AColumns: TColumns); virtual;
+    
+    // Optional methods to override:
+    function AsFloat(const AColumn: TColumn; const ARow: Integer): TFloat; virtual;
+    function AutoWidth(const APainter: TPainter; const AColumn: TColumn): Single; virtual;
+    function DataType(const AColumn: TColumn): PTypeInfo; virtual;
+    procedure EditMode(const AMode: TEditMode); virtual;
+    function Empty: Boolean; virtual;
+    function EOF(const ARow: Integer): Boolean; virtual;
+    function KnownCount: Boolean; virtual;
+    function ReadOnly(const AColumn: TColumn): Boolean; virtual;
+    procedure Refresh; virtual;
+    procedure RowChanged(const ARow: Integer); virtual;
+    procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); virtual;
+    procedure SetField(const AColumn: TColumn; const ASource: TObject); virtual;
+    procedure SetFirstRow(const ARow: Integer); virtual;
+  end;
+```
+
+## Minimal Implementation
+
+Create a simple read-only data source:
+
+```pascal
+unit MyCustomData;
+
+interface
+
+uses
+  Tee.GridData, Tee.Grid.Columns, Tee.Painter;
+
+type
+  TMyCustomData = class(TVirtualData)
+  private
+    FRowCount: Integer;
+  protected
+    function Empty: Boolean; override;
+    function KnownCount: Boolean; override;
+  public
+    constructor Create(const ARowCount: Integer);
+    
+    // Required methods
+    function Count: Integer; override;
+    procedure AddColumns(const AColumns: TColumns); override;
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+  end;
+
+implementation
+
+constructor TMyCustomData.Create(const ARowCount: Integer);
+begin
+  inherited Create;
+  FRowCount := ARowCount;
+end;
+
+function TMyCustomData.Count: Integer;
+begin
+  Result := FRowCount;
+end;
+
+function TMyCustomData.Empty: Boolean;
+begin
+  Result := FRowCount = 0;
+end;
+
+function TMyCustomData.KnownCount: Boolean;
+begin
+  Result := True;  // We know the exact row count
+end;
+
+procedure TMyCustomData.AddColumns(const AColumns: TColumns);
+var
+  Col: TColumn;
+begin
+  // Create 3 columns
+  Col := AColumns.Add;
+  Col.Header.Text := 'Column 1';
+  
+  Col := AColumns.Add;
+  Col.Header.Text := 'Column 2';
+  
+  Col := AColumns.Add;
+  Col.Header.Text := 'Column 3';
+end;
+
+function TMyCustomData.AsString(const AColumn: TColumn;
+  const ARow: Integer): String;
+begin
+  // Return cell value
+  Result := Format('Col %d, Row %d', [AColumn.Index, ARow]);
+end;
+
+end.
+```
+
+Usage:
+
+```pascal
+uses MyCustomData;
+
+var
+  Data: TMyCustomData;
+begin
+  Data := TMyCustomData.Create(1000);  // 1000 rows
+  TeeGrid1.Data := Data;
+end;
+```
+
+## Editable Data Source
+
+Add editing support:
+
+```pascal
+type
+  TEditableCustomData = class(TMyCustomData)
+  private
+    FData: TDictionary<String, String>;  // Key: "col_row", Value: cell text
+    
+    function MakeKey(const AColumn: TColumn; const ARow: Integer): String;
+  public
+    constructor Create(const ARowCount: Integer);
+    destructor Destroy; override;
+    
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+    procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); override;
+    function ReadOnly(const AColumn: TColumn): Boolean; override;
+  end;
+
+implementation
+
+uses System.Generics.Collections;
+
+constructor TEditableCustomData.Create(const ARowCount: Integer);
+begin
+  inherited Create(ARowCount);
+  FData := TDictionary<String, String>.Create;
+end;
+
+destructor TEditableCustomData.Destroy;
+begin
+  FData.Free;
+  inherited;
+end;
+
+function TEditableCustomData.MakeKey(const AColumn: TColumn;
+  const ARow: Integer): String;
+begin
+  Result := Format('%d_%d', [AColumn.Index, ARow]);
+end;
+
+function TEditableCustomData.AsString(const AColumn: TColumn;
+  const ARow: Integer): String;
+var
+  Key: String;
+begin
+  Key := MakeKey(AColumn, ARow);
+  
+  if not FData.TryGetValue(Key, Result) then
+    Result := '';  // Empty cell
+end;
+
+procedure TEditableCustomData.SetValue(const AColumn: TColumn;
+  const ARow: Integer; const AText: String);
+var
+  Key: String;
+begin
+  Key := MakeKey(AColumn, ARow);
+  FData.AddOrSetValue(Key, AText);
+end;
+
+function TEditableCustomData.ReadOnly(const AColumn: TColumn): Boolean;
+begin
+  // Column 0 is read-only, others are editable
+  Result := AColumn.Index = 0;
+end;
+```
+
+## Database-Backed Example
+
+Create a custom data source that loads from a database:
+
+```pascal
+type
+  TDatabaseVirtualData = class(TVirtualData)
+  private
+    FConnection: TFDConnection;
+    FTableName: String;
+    FQuery: TFDQuery;
+    FColumns: TStringList;
+    
+    procedure LoadSchema;
+    procedure FetchRow(const ARow: Integer);
+  protected
+    function Empty: Boolean; override;
+    function KnownCount: Boolean; override;
+  public
+    constructor Create(AConnection: TFDConnection; const ATableName: String);
+    destructor Destroy; override;
+    
+    function Count: Integer; override;
+    procedure AddColumns(const AColumns: TColumns); override;
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+    procedure SetValue(const AColumn: TColumn; const ARow: Integer; const AText: String); override;
+  end;
+
+implementation
+
+constructor TDatabaseVirtualData.Create(AConnection: TFDConnection;
+  const ATableName: String);
+begin
+  inherited Create;
+  FConnection := AConnection;
+  FTableName := ATableName;
+  FColumns := TStringList.Create;
+  FQuery := TFDQuery.Create(nil);
+  FQuery.Connection := FConnection;
+  
+  LoadSchema;
+end;
+
+destructor TDatabaseVirtualData.Destroy;
+begin
+  FQuery.Free;
+  FColumns.Free;
+  inherited;
+end;
+
+procedure TDatabaseVirtualData.LoadSchema;
+var
+  SchemaQuery: TFDQuery;
+  t: Integer;
+begin
+  SchemaQuery := TFDQuery.Create(nil);
+  try
+    SchemaQuery.Connection := FConnection;
+    SchemaQuery.SQL.Text := 'SELECT * FROM ' + FTableName + ' WHERE 1=0';
+    SchemaQuery.Open;
+    
+    FColumns.Clear;
+    for t := 0 to SchemaQuery.FieldCount - 1 do
+      FColumns.Add(SchemaQuery.Fields[t].FieldName);
+  finally
+    SchemaQuery.Free;
+  end;
+end;
+
+function TDatabaseVirtualData.Count: Integer;
+var
+  CountQuery: TFDQuery;
+begin
+  CountQuery := TFDQuery.Create(nil);
+  try
+    CountQuery.Connection := FConnection;
+    CountQuery.SQL.Text := 'SELECT COUNT(*) FROM ' + FTableName;
+    CountQuery.Open;
+    Result := CountQuery.Fields[0].AsInteger;
+  finally
+    CountQuery.Free;
+  end;
+end;
+
+function TDatabaseVirtualData.Empty: Boolean;
+begin
+  Result := Count = 0;
+end;
+
+function TDatabaseVirtualData.KnownCount: Boolean;
+begin
+  Result := True;
+end;
+
+procedure TDatabaseVirtualData.AddColumns(const AColumns: TColumns);
+var
+  t: Integer;
+  Col: TColumn;
+begin
+  for t := 0 to FColumns.Count - 1 do
+  begin
+    Col := AColumns.Add;
+    Col.Header.Text := FColumns[t];
+  end;
+end;
+
+procedure TDatabaseVirtualData.FetchRow(const ARow: Integer);
+begin
+  if FQuery.Active and (FQuery.RecNo = ARow + 1) then
+    Exit;  // Already on correct row
+  
+  FQuery.Close;
+  FQuery.SQL.Text := Format('SELECT * FROM %s LIMIT 1 OFFSET %d',
+    [FTableName, ARow]);
+  FQuery.Open;
+end;
+
+function TDatabaseVirtualData.AsString(const AColumn: TColumn;
+  const ARow: Integer): String;
+begin
+  FetchRow(ARow);
+  
+  if FQuery.Eof then
+    Result := ''
+  else
+    Result := FQuery.Fields[AColumn.Index].AsString;
+end;
+
+procedure TDatabaseVirtualData.SetValue(const AColumn: TColumn;
+  const ARow: Integer; const AText: String);
+var
+  UpdateQuery: TFDQuery;
+  FieldName: String;
+begin
+  FetchRow(ARow);
+  
+  if FQuery.Eof then
+    Exit;
+  
+  FieldName := FColumns[AColumn.Index];
+  
+  UpdateQuery := TFDQuery.Create(nil);
+  try
+    UpdateQuery.Connection := FConnection;
+    UpdateQuery.SQL.Text := Format('UPDATE %s SET %s = :Value WHERE ID = :ID',
+      [FTableName, FieldName]);
+    UpdateQuery.ParamByName('Value').AsString := AText;
+    UpdateQuery.ParamByName('ID').AsInteger := FQuery.FieldByName('ID').AsInteger;
+    UpdateQuery.ExecSQL;
+  finally
+    UpdateQuery.Free;
+  end;
+end;
+```
+
+<Warning>
+The database example above is simplified. Production code should include:
+- Connection error handling
+- Transaction management
+- Caching for better performance
+- Proper SQL injection prevention
+</Warning>
+
+## Computed Columns
+
+Add calculated columns to your data:
+
+```pascal
+type
+  TComputedData = class(TVirtualData)
+  private
+    FBaseData: TArray<Double>;
+  public
+    constructor Create(const AData: TArray<Double>);
+    
+    function Count: Integer; override;
+    procedure AddColumns(const AColumns: TColumns); override;
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+    function AsFloat(const AColumn: TColumn; const ARow: Integer): TFloat; override;
+  end;
+
+implementation
+
+constructor TComputedData.Create(const AData: TArray<Double>);
+begin
+  inherited Create;
+  FBaseData := AData;
+end;
+
+function TComputedData.Count: Integer;
+begin
+  Result := Length(FBaseData);
+end;
+
+procedure TComputedData.AddColumns(const AColumns: TColumns);
+var
+  Col: TColumn;
+begin
+  Col := AColumns.Add;
+  Col.Header.Text := 'Value';
+  
+  Col := AColumns.Add;
+  Col.Header.Text := 'Square';
+  
+  Col := AColumns.Add;
+  Col.Header.Text := 'Square Root';
+  
+  Col := AColumns.Add;
+  Col.Header.Text := 'Inverse';
+end;
+
+function TComputedData.AsFloat(const AColumn: TColumn;
+  const ARow: Integer): TFloat;
+var
+  Value: Double;
+begin
+  Value := FBaseData[ARow];
+  
+  case AColumn.Index of
+    0: Result := Value;                // Original value
+    1: Result := Value * Value;        // Square
+    2: Result := Sqrt(Value);          // Square root
+    3: Result := 1 / Value;            // Inverse
+  else
+    Result := 0;
+  end;
+end;
+
+function TComputedData.AsString(const AColumn: TColumn;
+  const ARow: Integer): String;
+begin
+  Result := FloatToStrF(AsFloat(AColumn, ARow), ffFixed, 10, 2);
+end;
+```
+
+## Factory Method Pattern
+
+Implement a `From` class method for easy instantiation:
+
+```pascal
+type
+  TMyData = class(TVirtualData)
+  public
+    class function From(const ASource: TComponent): TVirtualData; override;
+  end;
+
+class function TMyData.From(const ASource: TComponent): TVirtualData;
+begin
+  if ASource is TMySpecialComponent then
+    Result := TMyData.Create(TMySpecialComponent(ASource))
+  else
+    Result := nil;
+end;
+
+// Usage:
+TeeGrid1.Data := TMyData.From(MyComponent1);
+```
+
+## Performance Optimization
+
+Optimize for large datasets:
+
+```pascal
+type
+  TOptimizedData = class(TVirtualData)
+  private
+    FCache: TDictionary<Integer, TArray<String>>;
+    FCacheSize: Integer;
+    
+    function GetCachedRow(const ARow: Integer): TArray<String>;
+    procedure ClearOldCache;
+  protected
+    function KnownCount: Boolean; override;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    
+    function Count: Integer; override;
+    procedure AddColumns(const AColumns: TColumns); override;
+    function AsString(const AColumn: TColumn; const ARow: Integer): String; override;
+    function AutoWidth(const APainter: TPainter; const AColumn: TColumn): Single; override;
+  end;
+
+implementation
+
+constructor TOptimizedData.Create;
+begin
+  inherited Create;
+  FCache := TDictionary<Integer, TArray<String>>.Create;
+  FCacheSize := 100;  // Cache last 100 rows
+end;
+
+destructor TOptimizedData.Destroy;
+begin
+  FCache.Free;
+  inherited;
+end;
+
+function TOptimizedData.KnownCount: Boolean;
+begin
+  Result := True;
+end;
+
+function TOptimizedData.GetCachedRow(const ARow: Integer): TArray<String>;
+begin
+  if not FCache.TryGetValue(ARow, Result) then
+  begin
+    // Fetch row from slow data source
+    SetLength(Result, 3);
+    Result[0] := 'Data ' + IntToStr(ARow);
+    Result[1] := IntToStr(ARow);
+    Result[2] := FloatToStr(ARow * 1.5);
+    
+    FCache.Add(ARow, Result);
+    
+    if FCache.Count > FCacheSize then
+      ClearOldCache;
+  end;
+end;
+
+procedure TOptimizedData.ClearOldCache;
+var
+  Keys: TArray<Integer>;
+  t: Integer;
+begin
+  // Simple: clear half the cache
+  Keys := FCache.Keys.ToArray;
+  
+  for t := 0 to (Length(Keys) div 2) - 1 do
+    FCache.Remove(Keys[t]);
+end;
+
+function TOptimizedData.AsString(const AColumn: TColumn;
+  const ARow: Integer): String;
+var
+  RowData: TArray<String>;
+begin
+  RowData := GetCachedRow(ARow);
+  Result := RowData[AColumn.Index];
+end;
+
+function TOptimizedData.AutoWidth(const APainter: TPainter;
+  const AColumn: TColumn): Single;
+begin
+  // Return fixed width to skip calculation (much faster)
+  Result := 100;
+end;
+```
+
+<Tip>
+**Performance Tips**:
+- Override `AutoWidth` to return a fixed value (skip measurement)
+- Implement `KnownCount` to return `True` if you know the exact row count
+- Cache frequently accessed rows
+- Batch database queries
+- Use `SetFirstRow` to prefetch visible rows
+</Tip>
+
+## Column Data Types
+
+Provide type information for proper formatting:
+
+```pascal
+type
+  TTypedData = class(TVirtualData)
+  private
+    FData: TArray<TPerson>;
+  public
+    function DataType(const AColumn: TColumn): PTypeInfo; override;
+  end;
+
+function TTypedData.DataType(const AColumn: TColumn): PTypeInfo;
+begin
+  case AColumn.Index of
+    0: Result := TypeInfo(String);      // Name
+    1: Result := TypeInfo(TDateTime);   // BirthDate
+    2: Result := TypeInfo(Integer);     // Children
+    3: Result := TypeInfo(Single);      // Height
+    4: Result := TypeInfo(Boolean);     // IsDeveloper
+  else
+    Result := TypeInfo(String);
+  end;
+end;
+```
+
+## Testing Your Custom Data
+
+Unit test your implementation:
+
+```pascal
+procedure TestCustomData;
+var
+  Data: TMyCustomData;
+  Columns: TColumns;
+  Value: String;
+begin
+  Data := TMyCustomData.Create(100);
+  try
+    Assert(Data.Count = 100, 'Count should be 100');
+    Assert(not Data.Empty, 'Should not be empty');
+    
+    Columns := TColumns.Create(nil, TColumn);
+    try
+      Data.AddColumns(Columns);
+      Assert(Columns.Count > 0, 'Columns should be created');
+      
+      Value := Data.AsString(Columns[0], 0);
+      Assert(Value <> '', 'Should return cell value');
+    finally
+      Columns.Free;
+    end;
+  finally
+    Data.Free;
+  end;
+end;
+```
+
+## Real-World Examples
+
+Check these demo units for inspiration:
+
+- **`Unit_VirtualMode.pas`**: Virtual mode with events (TeeGrid.GridData.Strings:80)
+- **`Unit_MyData.pas`**: Sample record and class definitions (TeeGrid.Demos:1)
+- **`Tee.GridData.DB.pas`**: Full dataset implementation (TeeGrid.GridData.DB:65)
+- **`Tee.GridData.Rtti.pas`**: RTTI-based array/list binding (TeeGrid.GridData.Rtti:64)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DataSet Binding" icon="database" href="/data/datasets">
+    Study TVirtualDBData implementation
+  </Card>
+  
+  <Card title="Arrays and Lists" icon="list" href="/data/arrays-and-lists">
+    See TVirtualData&lt;T&gt; RTTI binding
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/virtualdata">
+    Complete TVirtualData API documentation
+  </Card>
+  
+  <Card title="Rendering" icon="paintbrush" href="/api/trender">
+    Custom cell rendering and painting
+  </Card>
+</CardGroup>

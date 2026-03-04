@@ -1,0 +1,384 @@
+---
+title: Selection
+description: Select cells, rows, and ranges with keyboard and mouse
+---
+
+TeeGrid provides flexible cell and range selection with visual feedback, keyboard navigation, and customizable appearance.
+
+## Basic Selection
+
+Access the current selection:
+
+```delphi
+// Get selected column and row
+var
+  Col: TColumn;
+  Row: Integer;
+begin
+  Col := TeeGrid1.Selected.Column;
+  Row := TeeGrid1.Selected.Row;
+  
+  if (Col <> nil) and (Row >= 0) then
+    ShowMessage('Selected: ' + Col.Header.Text + ', Row ' + IntToStr(Row));
+end;
+```
+
+## Programmatic Selection
+
+Set selection programmatically:
+
+```delphi
+// Select specific cell
+TeeGrid1.Selected.Column := TeeGrid1.Columns[3];
+TeeGrid1.Selected.Row := 42;
+
+// Or use Change method
+TeeGrid1.Selected.Change(TeeGrid1.Columns[3], 42);
+
+// Clear selection
+TeeGrid1.Selected.Clear;
+```
+
+## Selection Events
+
+### OnSelect
+
+Fired when selection changes:
+
+```delphi
+TeeGrid1.OnSelect := GridSelectionChanged;
+
+procedure TForm1.GridSelectionChanged(Sender: TObject);
+begin
+  if TeeGrid1.Selected.Row >= 0 then
+    Label1.Caption := 'Row: ' + IntToStr(TeeGrid1.Selected.Row)
+  else
+    Label1.Caption := 'No selection';
+end;
+```
+
+## Selection Appearance
+
+Customize how selection looks:
+
+```delphi
+// Selected cell/row colors
+TeeGrid1.Selected.Format.Brush.Color := clHighlight;
+TeeGrid1.Selected.Format.Brush.Visible := True;
+TeeGrid1.Selected.Format.Font.Color := clHighlightText;
+TeeGrid1.Selected.Format.Font.Style := [fsBold];
+
+// Selection when grid doesn't have focus
+TeeGrid1.Selected.UnFocused.Visible := True;
+TeeGrid1.Selected.UnFocused.Format.Brush.Color := clSilver;
+TeeGrid1.Selected.UnFocused.Format.Font.Color := clBlack;
+```
+
+## Full Row Selection
+
+Select entire rows instead of individual cells:
+
+```delphi
+TeeGrid1.Selected.FullRow := True;
+
+// Now clicking any cell selects the whole row
+```
+
+## Range Selection
+
+Select multiple cells:
+
+```delphi
+// Enable range selection
+TeeGrid1.Selected.Range.Enabled := True;
+
+// Set range programmatically
+TeeGrid1.Selected.Range.FromRow := 10;
+TeeGrid1.Selected.Range.ToRow := 20;
+TeeGrid1.Selected.Range.FromColumn := TeeGrid1.Columns[3];
+TeeGrid1.Selected.Range.ToColumn := TeeGrid1.Columns[6];
+```
+
+## Mouse Range Selection
+
+Users can select ranges by dragging:
+
+```delphi
+// Enable range selection
+TeeGrid1.Selected.Range.Enabled := True;
+
+// User can now:
+// 1. Click and drag to select range
+// 2. Shift+Click to extend selection
+// 3. Shift+Arrow keys to extend selection
+```
+
+## Checking Range Selection
+
+```delphi
+if TeeGrid1.Selected.Range.Enabled then
+begin
+  ShowMessage('Range from row ' + 
+              IntToStr(TeeGrid1.Selected.Range.FromRow) + 
+              ' to ' + 
+              IntToStr(TeeGrid1.Selected.Range.ToRow));
+end;
+```
+
+## Keyboard Navigation
+
+Control Enter key behavior:
+
+```delphi
+// TSelectingEnter options:
+// - NextCell: Move to next cell
+// - NextRow: Move to next row  
+// - SameCell: Stay in same cell
+
+TeeGrid1.Selected.EnterKey := TSelectingEnter.NextRow;
+```
+
+## Scroll to View
+
+Automatically scroll to show selection:
+
+```delphi
+TeeGrid1.Selected.ScrollToView := True;
+
+// Now when selection changes, grid scrolls to show it
+TeeGrid1.Selected.Row := 1000;  // Scrolls to row 1000
+```
+
+## Selectable Columns
+
+Control which columns can be selected:
+
+```delphi
+// Disable selection for specific column
+TeeGrid1.Columns['Actions'].Selectable := False;
+
+// User can't select cells in this column
+```
+
+## Selection Hover
+
+Highlight cells on mouse hover:
+
+```delphi
+// Enable hover highlighting
+TeeGrid1.Selected.Hover.Brush.Color := clYellow;
+TeeGrid1.Selected.Hover.Brush.Visible := True;
+```
+
+## Parent Font
+
+Inherit selection font from parent:
+
+```delphi
+TeeGrid1.Selected.ParentFont := True;
+
+// Selection now uses grid's font
+// Override with custom font:
+TeeGrid1.Selected.ParentFont := False;
+TeeGrid1.Selected.Format.Font.Size := 12;
+```
+
+## Copy Selection
+
+Copy selected data to clipboard:
+
+```delphi
+// Copy current selection
+TeeGrid1.Copy;
+
+// Copy specific range
+var
+  Range: TGridSelection;
+begin
+  Range := TGridSelection.Create(nil);
+  try
+    Range.Range.Enabled := True;
+    Range.Range.FromRow := 0;
+    Range.Range.ToRow := 10;
+    Range.Range.FromColumn := TeeGrid1.Columns[0];
+    Range.Range.ToColumn := TeeGrid1.Columns[2];
+    
+    TeeGrid1.Copy(Range);
+  finally
+    Range.Free;
+  end;
+end;
+```
+
+## Paste to Selection
+
+Paste clipboard data:
+
+```delphi
+// Paste at current selection
+TeeGrid1.PasteSelected;
+
+// Data from clipboard is pasted starting at selected cell
+```
+
+## Multi-Selection
+
+For advanced multi-selection scenarios:
+
+```delphi
+// Range selection supports rectangular regions
+TeeGrid1.Selected.Range.Enabled := True;
+
+// Users can:
+// - Click cell (start selection)
+// - Shift+Click another cell (select range)
+// - Ctrl+C to copy range
+// - Ctrl+V to paste
+```
+
+## Selection with Master-Detail
+
+Each row group has independent selection:
+
+```delphi
+procedure TForm1.DetailGroupCreated(const Sender, NewGroup: TRowGroup);
+begin
+  // Detail group has its own selection
+  NewGroup.Selected.Format.Brush.Color := TAlphaColors.Lightblue;
+  NewGroup.Selected.Format.Brush.Visible := True;
+  
+  // Handle detail selection
+  NewGroup.OnChangedSelected := DetailSelectionChanged;
+end;
+
+procedure TForm1.DetailSelectionChanged(Sender: TObject);
+var
+  Group: TRowGroup;
+begin
+  Group := TRowGroup(Sender);
+  
+  if Group.Selected.Row >= 0 then
+    ShowMessage('Detail row ' + IntToStr(Group.Selected.Row) + ' selected');
+end;
+```
+
+## Getting Selected Data
+
+Retrieve data from selected cell:
+
+```delphi
+var
+  Value: String;
+begin
+  if (TeeGrid1.Selected.Column <> nil) and (TeeGrid1.Selected.Row >= 0) then
+  begin
+    Value := TeeGrid1.Data.AsString(TeeGrid1.Selected.Column, 
+                                     TeeGrid1.Selected.Row);
+    ShowMessage('Selected value: ' + Value);
+  end;
+end;
+```
+
+## Selection Hit Testing
+
+Check if a point is in selection:
+
+```delphi
+var
+  X, Y: Single;
+begin
+  X := Mouse.CursorPos.X;
+  Y := Mouse.CursorPos.Y;
+  
+  if TeeGrid1.Grid.Current.SelectedContains(X, Y) then
+    ShowMessage('Mouse is over selection');
+end;
+```
+
+## Empty Selection
+
+Check if there's a selection:
+
+```delphi
+if TeeGrid1.Selected.IsEmpty then
+  ShowMessage('Nothing selected')
+else
+  ShowMessage('Cell is selected');
+```
+
+## Column Selection
+
+Select entire columns (combined with FullRow):
+
+```delphi
+procedure TForm1.SelectColumn(AColumn: TColumn);
+begin
+  TeeGrid1.Selected.Column := AColumn;
+  TeeGrid1.Selected.Row := 0;
+  TeeGrid1.Selected.Range.Enabled := True;
+  TeeGrid1.Selected.Range.FromRow := 0;
+  TeeGrid1.Selected.Range.ToRow := TeeGrid1.Data.Count - 1;
+  TeeGrid1.Selected.Range.FromColumn := AColumn;
+  TeeGrid1.Selected.Range.ToColumn := AColumn;
+end;
+```
+
+## Selection Context Menu
+
+Show context menu on selection:
+
+```delphi
+procedure TForm1.TeeGrid1MouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  if Button = mbRight then
+  begin
+    if TeeGrid1.Grid.Current.SelectedContains(X, Y) then
+      PopupMenu1.Popup(Mouse.CursorPos.X, Mouse.CursorPos.Y);
+  end;
+end;
+```
+
+## Previous Selection
+
+Track previous selection:
+
+```delphi
+var
+  PreviousRow: Integer;
+
+procedure TForm1.TeeGrid1Select(Sender: TObject);
+begin
+  ShowMessage('Changed from row ' + IntToStr(PreviousRow) + 
+              ' to row ' + IntToStr(TeeGrid1.Selected.Row));
+  
+  PreviousRow := TeeGrid1.Selected.Row;
+end;
+```
+
+## Validate Selection
+
+Prevent selection of certain cells:
+
+```delphi
+procedure TForm1.TeeGrid1Select(Sender: TObject);
+begin
+  // Don't allow selecting first row
+  if TeeGrid1.Selected.Row = 0 then
+  begin
+    TeeGrid1.Selected.Row := 1;  // Move to row 1
+  end;
+end;
+```
+
+## Best Practices
+
+- Use `OnSelect` to respond to selection changes
+- Enable `ScrollToView` for better user experience
+- Use `FullRow := True` for record-based data
+- Use `Range.Enabled := True` for spreadsheet-like grids
+- Customize `UnFocused` appearance so users can see selection when grid loses focus
+- Make important columns non-selectable with `Selectable := False`
+- Combine selection with Copy/Paste for data entry workflows
+- Use `IsEmpty` to check for selection before accessing `Column` or `Row`
+- Remember that each row group has its own selection in master-detail grids

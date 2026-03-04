@@ -1,0 +1,290 @@
+---
+title: Sorting
+description: Sort grid data by clicking column headers
+---
+
+TeeGrid supports sorting data by column headers with visual indicators for sort direction.
+
+## Basic Sorting Setup
+
+Enable sortable headers:
+
+```delphi
+TeeGrid1.Header.Sortable := True;
+```
+
+This enables built-in sorting for simple data sources. For custom sorting logic, use a `TSortableHeader` render.
+
+## Custom Sorting with TSortableHeader
+
+For full control over sorting behavior, create a custom sortable header:
+
+```delphi
+uses
+  Tee.Grid.Header, System.Generics.Defaults;
+
+procedure TForm1.FormCreate(Sender: TObject);
+var
+  Sortable: TSortableHeader;
+begin
+  // Create sortable header
+  Sortable := TSortableHeader.Create(TeeGrid1.Header.Changed);
+  
+  // Set custom events
+  Sortable.OnCanSort := HeaderCanSortBy;
+  Sortable.OnSortBy := HeaderSortBy;
+  Sortable.OnSortState := HeaderSortState;
+  
+  // Assign to grid header
+  TeeGrid1.Header.SortRender := Sortable;
+end;
+```
+
+## Sorting Events
+
+### OnCanSort
+
+Control which columns can be sorted:
+
+```delphi
+procedure TForm1.HeaderCanSortBy(const AColumn: TColumn; var CanSort: Boolean);
+begin
+  // Disable sorting for specific column (index 4)
+  CanSort := (AColumn <> nil) and (AColumn.Index <> 4);
+end;
+```
+
+### OnSortBy
+
+Implement the actual sorting logic:
+
+```delphi
+procedure TForm1.HeaderSortBy(Sender: TObject; const AColumn: TColumn);
+begin
+  // Toggle sort direction
+  if SortColumn = AColumn.Index then
+    SortAsc := not SortAsc
+  else
+  begin
+    SortColumn := AColumn.Index;
+    SortAsc := True;  // Default to ascending on first click
+  end;
+  
+  // Perform the sort
+  SortData(AColumn, SortAsc);
+end;
+```
+
+### OnSortState
+
+Provide visual feedback for the current sort state:
+
+```delphi
+procedure TForm1.HeaderSortState(const AColumn: TColumn; var State: TSortState);
+begin
+  if SortColumn = AColumn.Index then
+  begin
+    if SortAsc then
+      State := TSortState.Ascending
+    else
+      State := TSortState.Descending;
+  end
+  else
+    State := TSortState.None;
+end;
+```
+
+## TSortState Values
+
+The sort state determines the visual indicator:
+
+- `TSortState.None` - No sort indicator
+- `TSortState.Ascending` - Up arrow (△)
+- `TSortState.Descending` - Down arrow (▽)
+
+## Implementing Sort Logic
+
+For array-based data, use `TArray.Sort` with a custom comparer:
+
+```delphi
+type
+  TPersonField = (Name, Street, Number, BirthDate, Children, Height);
+  
+  TPersonComparer = class(TComparer<TPerson>)
+  public
+    Ascending: Boolean;
+    PersonField: TPersonField;
+    
+    function Compare(const Left, Right: TPerson): Integer; override;
+  end;
+
+function TPersonComparer.Compare(const Left, Right: TPerson): Integer;
+var
+  APerson, BPerson: TPerson;
+begin
+  if Ascending then
+  begin
+    APerson := Left;
+    BPerson := Right;
+  end
+  else
+  begin
+    APerson := Right;
+    BPerson := Left;
+  end;
+  
+  case PersonField of
+    Name: Result := CompareText(APerson.Name, BPerson.Name);
+    Street: Result := CompareText(APerson.Address.Street, BPerson.Address.Street);
+    Number: Result := CompareValue(APerson.Address.Number, BPerson.Address.Number);
+    BirthDate: Result := CompareValue(APerson.BirthDate, BPerson.BirthDate);
+    Children: Result := CompareValue(APerson.Children, BPerson.Children);
+    Height: Result := CompareValue(APerson.Height, BPerson.Height);
+  else
+    Result := 0;
+  end;
+end;
+
+procedure TForm1.SortData(const AColumn: TColumn; const Ascending: Boolean);
+var
+  Comparer: TPersonComparer;
+begin
+  Comparer := TPersonComparer.Create;
+  try
+    Comparer.Ascending := Ascending;
+    Comparer.PersonField := FieldOf(AColumn.Header.Text);
+    
+    TArray.Sort<TPerson>(Persons, Comparer);
+    TeeGrid1.Invalidate;  // Refresh display
+  finally
+    Comparer.Free;
+  end;
+end;
+```
+
+## Sorting Sub-Columns
+
+Handle sorting for columns with sub-columns:
+
+```delphi
+function ParentColumn(AGrid: TTeeGrid; AColumn: TColumn): TColumn;
+var
+  i: Integer;
+begin
+  if AColumn.Parent <> nil then
+    for i := 0 to AGrid.Columns.Count - 1 do
+      if AColumn.Parent = AGrid.Columns[i] then
+        Exit(AGrid.Columns[i]);
+  
+  Result := nil;
+end;
+
+procedure TForm1.HeaderSortBy(Sender: TObject; const AColumn: TColumn);
+var
+  ParentCol: TColumn;
+begin
+  ParentCol := ParentColumn(TeeGrid1, AColumn);
+  
+  if ParentCol <> nil then
+  begin
+    // Sorting a sub-column
+    if (SortColumn = ParentCol.Index) and (SortSubColumn = AColumn.Index) then
+      SortAsc := not SortAsc;
+    
+    SortColumn := ParentCol.Index;
+    SortSubColumn := AColumn.Index;
+  end
+  else
+  begin
+    // Sorting a top-level column
+    if SortColumn = AColumn.Index then
+      SortAsc := not SortAsc
+    else
+      SortColumn := AColumn.Index;
+  end;
+  
+  SortData(AColumn, SortAsc);
+end;
+```
+
+## Database Sorting
+
+For database-backed grids, update the query:
+
+```delphi
+procedure TForm1.HeaderSortBy(Sender: TObject; const AColumn: TColumn);
+var
+  OrderBy: String;
+begin
+  if SortAsc then
+    OrderBy := AColumn.Header.Text + ' ASC'
+  else
+    OrderBy := AColumn.Header.Text + ' DESC';
+  
+  FDQuery1.Close;
+  FDQuery1.SQL.Text := 'SELECT * FROM Customers ORDER BY ' + OrderBy;
+  FDQuery1.Open;
+end;
+```
+
+## Customizing Sort Indicators
+
+Customize the sort indicator appearance:
+
+```delphi
+var
+  Sortable: TSortableHeader;
+begin
+  Sortable := TSortableHeader.Create(TeeGrid1.Header.Changed);
+  Sortable.Size := 8;  // Size of sort indicator (default: 6)
+  Sortable.Format.Font.Color := clBlue;  // Color of indicator
+  
+  TeeGrid1.Header.SortRender := Sortable;
+end;
+```
+
+## Multi-Column Sorting
+
+For advanced scenarios, implement multi-column sorting by maintaining a list of sort columns:
+
+```delphi
+type
+  TSortInfo = record
+    Column: TColumn;
+    Ascending: Boolean;
+  end;
+
+var
+  SortColumns: TList<TSortInfo>;
+
+procedure TForm1.HeaderSortBy(Sender: TObject; const AColumn: TColumn);
+var
+  Info: TSortInfo;
+begin
+  // Hold Shift to add secondary sort columns
+  if GetKeyState(VK_SHIFT) < 0 then
+  begin
+    Info.Column := AColumn;
+    Info.Ascending := True;
+    SortColumns.Add(Info);
+  end
+  else
+  begin
+    SortColumns.Clear;
+    Info.Column := AColumn;
+    Info.Ascending := True;
+    SortColumns.Add(Info);
+  end;
+  
+  PerformMultiColumnSort;
+end;
+```
+
+## Best Practices
+
+- Use `OnCanSort` to disable sorting on columns where it doesn't make sense (actions, images, etc.)
+- Provide visual feedback with `OnSortState` so users know the current sort order
+- For large datasets, consider database-level sorting instead of in-memory sorting
+- Cache sort column and direction in form fields for persistence
+- Use `CompareText` for case-insensitive string sorting
+- Use `CompareValue` from `System.Math` for numeric comparisons

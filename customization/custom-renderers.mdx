@@ -1,0 +1,556 @@
+---
+title: "Custom Cell Renderers"
+description: "Create custom renderers to display checkboxes, progress bars, images, and specialized content in grid cells"
+---
+
+TeeGrid's rendering system allows you to customize how cell content is displayed. You can use built-in renderers like checkboxes and progress bars, or create your own custom renderers for specialized visualization.
+
+## Understanding Renders
+
+A renderer is a class derived from `TRender` that controls how cell content is painted. The base rendering hierarchy:
+
+- `TRender` — Base class with `Paint` method
+- `TFormatRender` — Adds format and borders
+- `TTextRender` — Adds text rendering with margins and alignment
+- `TVisibleTextRender` — Adds visibility control
+
+## Built-in Renderers
+
+### Boolean Renderer (Checkboxes)
+
+Display boolean values as checkboxes:
+
+```pascal
+var
+  BoolRender: TBooleanRender;
+begin
+  BoolRender := TBooleanRender.Create(nil);
+  
+  // Use checkbox style (default)
+  BoolRender.Style := TBooleanRenderStyle.Check;
+  
+  // Configure checkbox appearance
+  BoolRender.Box.Size := 16;
+  BoolRender.Box.Format.Brush.Color := TColors.White;
+  BoolRender.Box.Format.Stroke.Color := TColors.DkGray;
+  
+  // Configure check mark color
+  BoolRender.CheckFormat.Stroke.Color := TColors.Green;
+  BoolRender.CheckFormat.Stroke.Size := 2;
+  
+  // Assign to column
+  TeeGrid1.Columns['Active'].Render := BoolRender;
+end;
+```
+
+**Boolean render styles:**
+- `TBooleanRenderStyle.Check` — Shows checkbox with checkmark
+- `TBooleanRenderStyle.Text` — Shows "True" or "False" as text
+
+### Progress Bar Renderer
+
+Display numeric values as progress bars:
+
+```pascal
+var
+  ProgressRender: TProgressRender;
+begin
+  ProgressRender := TProgressRender.Create(nil);
+  
+  // Set value range
+  ProgressRender.Minimum := 0;
+  ProgressRender.Maximum := 100;
+  
+  // Set orientation
+  ProgressRender.Orientation := TOrientation.Horizontal;
+  
+  // Style the progress bar
+  ProgressRender.Format.Brush.Color := TColors.SkyBlue;
+  ProgressRender.Format.Stroke.Color := TColors.Navy;
+  ProgressRender.Format.Stroke.Visible := True;
+  
+  // Assign to column
+  TeeGrid1.Columns['Progress'].Render := ProgressRender;
+end;
+```
+
+### Expander Renderer
+
+Create expandable/collapsible cells for hierarchical data:
+
+```pascal
+var
+  ExpanderRender: TExpanderRender;
+begin
+  ExpanderRender := TExpanderRender.Create(nil);
+  
+  // Set expander style
+  ExpanderRender.Style := TExpanderStyle.PlusMinus;  // PlusMinus, Triangle, or Arrow
+  
+  // Configure expand box
+  ExpanderRender.Box.Size := 12;
+  ExpanderRender.Box.Format.Brush.Color := TColors.White;
+  ExpanderRender.Box.Format.Stroke.Color := TColors.Black;
+  
+  // Configure expand symbol
+  ExpanderRender.ExpandFormat.Stroke.Color := TColors.Blue;
+  ExpanderRender.ExpandFormat.Stroke.Size := 2;
+  
+  // Handle expansion events
+  ExpanderRender.OnCanExpand := function(const Sender: TRender; 
+    const ARow: Integer): Boolean
+  begin
+    // Return True if row can expand
+    Result := HasChildren(ARow);
+  end;
+  
+  ExpanderRender.OnExpand := function(const Sender: TRender; 
+    const ARow: Integer): Boolean
+  begin
+    // Handle row expansion
+    ToggleRowExpansion(ARow);
+    Result := IsRowExpanded(ARow);
+  end;
+  
+  TeeGrid1.Columns[0].Render := ExpanderRender;
+end;
+```
+
+**Expander styles:**
+```pascal
+type
+  TExpanderStyle = (PlusMinus, Triangle, Arrow);
+```
+
+### Password Renderer
+
+Mask text content for password fields:
+
+```pascal
+var
+  PasswordRender: TPasswordRender;
+begin
+  PasswordRender := TPasswordRender.Create(nil);
+  
+  // Configure appearance
+  PasswordRender.Format.Font.Name := 'Courier New';
+  PasswordRender.Format.Font.Size := 10;
+  
+  TeeGrid1.Columns['Password'].Render := PasswordRender;
+  // Displays: ********
+end;
+```
+
+## Creating Custom Renderers
+
+### Basic Custom Renderer
+
+Create a simple custom renderer by overriding the `Paint` method:
+
+```pascal
+type
+  TStarRatingRender = class(TTextRender)
+  public
+    procedure Paint(var AData: TRenderData); override;
+  end;
+
+procedure TStarRatingRender.Paint(var AData: TRenderData);
+var
+  Rating: Integer;
+  Stars: string;
+  I: Integer;
+begin
+  // Get rating value (0-5)
+  Rating := StrToIntDef(AData.Data, 0);
+  
+  // Build star string
+  Stars := '';
+  for I := 1 to 5 do
+  begin
+    if I <= Rating then
+      Stars := Stars + '★'  // Filled star
+    else
+      Stars := Stars + '☆';  // Empty star
+  end;
+  
+  // Replace data with stars
+  AData.Data := Stars;
+  
+  // Call inherited to paint the text
+  inherited Paint(AData);
+end;
+
+// Usage
+var
+  StarRender: TStarRatingRender;
+begin
+  StarRender := TStarRatingRender.Create(nil);
+  StarRender.Format.Font.Size := 16;
+  StarRender.Format.Font.Color := TColors.Gold;
+  
+  TeeGrid1.Columns['Rating'].Render := StarRender;
+end;
+```
+
+### Advanced Custom Renderer with Graphics
+
+Draw custom graphics in cells:
+
+```pascal
+type
+  TColorSwatchRender = class(TFormatRender)
+  private
+    FSwatchSize: Single;
+  public
+    constructor Create(const AChanged: TNotifyEvent); override;
+    procedure Paint(var AData: TRenderData); override;
+    property SwatchSize: Single read FSwatchSize write FSwatchSize;
+  end;
+
+constructor TColorSwatchRender.Create(const AChanged: TNotifyEvent);
+begin
+  inherited;
+  FSwatchSize := 20;
+end;
+
+procedure TColorSwatchRender.Paint(var AData: TRenderData);
+var
+  SwatchRect: TRectF;
+  Color: TColor;
+begin
+  // Paint background
+  inherited Paint(AData);
+  
+  // Parse color from hex string (e.g., "#FF0000")
+  Color := StringToColor(AData.Data);
+  
+  // Calculate swatch rectangle
+  SwatchRect := AData.Bounds;
+  SwatchRect.Left := SwatchRect.Left + 4;
+  SwatchRect.Top := SwatchRect.Top + (SwatchRect.Height - FSwatchSize) / 2;
+  SwatchRect.Width := FSwatchSize;
+  SwatchRect.Height := FSwatchSize;
+  
+  // Draw color swatch
+  AData.Painter.SetBrush(Format.Brush);
+  Format.Brush.Color := Color;
+  AData.Painter.FillRectangle(SwatchRect);
+  
+  // Draw border around swatch
+  AData.Painter.SetStroke(Format.Stroke);
+  Format.Stroke.Color := TColors.Black;
+  Format.Stroke.Visible := True;
+  AData.Painter.DrawRectangle(SwatchRect);
+end;
+
+// Usage
+var
+  ColorRender: TColorSwatchRender;
+begin
+  ColorRender := TColorSwatchRender.Create(nil);
+  ColorRender.SwatchSize := 24;
+  TeeGrid1.Columns['Color'].Render := ColorRender;
+end;
+```
+
+### Image Renderer
+
+Display images in cells:
+
+```pascal
+type
+  TImageRender = class(TFormatRender)
+  private
+    FStretch: Boolean;
+  public
+    constructor Create(const AChanged: TNotifyEvent); override;
+    procedure Paint(var AData: TRenderData); override;
+    property Stretch: Boolean read FStretch write FStretch;
+  end;
+
+constructor TImageRender.Create(const AChanged: TNotifyEvent);
+begin
+  inherited;
+  FStretch := True;
+end;
+
+procedure TImageRender.Paint(var AData: TRenderData);
+var
+  ImagePath: string;
+  Picture: TPicture;
+  ImageRect: TRectF;
+begin
+  inherited Paint(AData);
+  
+  ImagePath := AData.Data;
+  if FileExists(ImagePath) then
+  begin
+    Picture := TPicture.Create(nil);
+    try
+      // Load image (implementation depends on VCL/FMX)
+      Picture.SetGraphic(LoadImageFromFile(ImagePath));
+      
+      // Calculate image rectangle
+      ImageRect := AData.Bounds;
+      ImageRect.Inflate(-2, -2);  // Add small margin
+      
+      // Draw image
+      Picture.Stretch := FStretch;
+      AData.Painter.Draw(ImageRect, Picture.Internal);
+    finally
+      Picture.Free;
+    end;
+  end;
+end;
+```
+
+## Render Data Structure
+
+The `TRenderData` record passed to `Paint` contains:
+
+```pascal
+type
+  TRenderData = record
+    Bounds: TRectF;      // Cell rectangle
+    Data: String;        // Cell value as string
+    Painter: TPainter;   // Drawing interface
+    Row: Integer;        // Current row index
+    
+    function AsBoolean: Boolean;  // Parse data as boolean
+    procedure ClearData;          // Clear cell data
+    function IsEmpty: Boolean;    // Check if data is empty
+  end;
+```
+
+## Text Rendering Options
+
+### Text Alignment
+
+Control how text is aligned within cells:
+
+```pascal
+var
+  TextRender: TTextRender;
+begin
+  TextRender := TTextRender.Create(nil);
+  
+  // Horizontal alignment
+  TextRender.TextAlign.Horizontal := THorizontalAlign.Center;
+  // Options: Left, Center, Right
+  
+  // Vertical alignment  
+  TextRender.TextAlign.Vertical := TVerticalAlign.Center;
+  // Options: Top, Center, Bottom
+  
+  TeeGrid1.Columns['Title'].Render := TextRender;
+end;
+```
+
+### Text Trimming
+
+Handle text overflow:
+
+```pascal
+var
+  TextRender: TTextRender;
+begin
+  TextRender := TTextRender.Create(nil);
+  
+  // Enable ellipsis for long text
+  TextRender.Trimming.Ellipsi := True;
+  TextRender.Trimming.Mode := TTrimmingMode.Character;
+  // Modes: None, Character, Word
+  
+  TeeGrid1.Columns['Description'].Render := TextRender;
+end;
+```
+
+## Borders and Decorations
+
+### Custom Borders
+
+Add borders to individual sides of cells:
+
+```pascal
+var
+  TextRender: TTextRender;
+begin
+  TextRender := TTextRender.Create(nil);
+  
+  // Configure individual borders
+  with TextRender.Borders do
+  begin
+    Left.Visible := True;
+    Left.Color := TColors.DkGray;
+    Left.Size := 1;
+    
+    Right.Visible := False;
+    
+    Top.Visible := True;
+    Top.Color := TColors.LightGray;
+    Top.Style := TStrokeStyle.Dash;
+    
+    Bottom.Visible := True;
+    Bottom.Color := TColors.Black;
+    Bottom.Size := 2;
+  end;
+  
+  TeeGrid1.Columns[0].Render := TextRender;
+end;
+```
+
+## Hit Testing
+
+Implement custom hit testing for interactive renderers:
+
+```pascal
+type
+  TButtonRender = class(TTextRender)
+  public
+    function Hit(const R: TRectF; const X, Y: Single): Boolean; override;
+    procedure Paint(var AData: TRenderData); override;
+  end;
+
+function TButtonRender.Hit(const R: TRectF; const X, Y: Single): Boolean;
+var
+  ButtonRect: TRectF;
+begin
+  // Calculate button rectangle
+  ButtonRect := R;
+  ButtonRect.Inflate(-4, -4);
+  
+  // Check if click is within button
+  Result := ButtonRect.Contains(PointF(X, Y));
+end;
+
+procedure TButtonRender.Paint(var AData: TRenderData);
+var
+  ButtonRect: TRectF;
+begin
+  ButtonRect := AData.Bounds;
+  ButtonRect.Inflate(-4, -4);
+  
+  // Draw button background
+  Format.Brush.Color := TColors.SkyBlue;
+  AData.Painter.FillRectangle(ButtonRect);
+  
+  // Draw button border
+  Format.Stroke.Color := TColors.Navy;
+  Format.Stroke.Size := 1;
+  AData.Painter.DrawRectangle(ButtonRect);
+  
+  // Draw button text
+  AData.Painter.SetFont(Format.Font);
+  AData.Painter.TextOut(ButtonRect, AData.Data, TextAlign);
+end;
+```
+
+## Complete Example: Multi-State Icon Renderer
+
+```pascal
+type
+  TStatusIconRender = class(TTextRender)
+  public
+    procedure Paint(var AData: TRenderData); override;
+  end;
+
+procedure TStatusIconRender.Paint(var AData: TRenderData);
+var
+  Status: string;
+  IconRect: TRectF;
+  IconColor: TColor;
+  Icon: string;
+begin
+  Status := LowerCase(Trim(AData.Data));
+  
+  // Determine icon and color based on status
+  case Status of
+    'active', 'ok':     begin Icon := '●'; IconColor := TColors.Green; end;
+    'warning':          begin Icon := '▲'; IconColor := TColors.Orange; end;
+    'error', 'failed':  begin Icon := '■'; IconColor := TColors.Red; end;
+    'pending':          begin Icon := '○'; IconColor := TColors.Blue; end;
+  else
+    Icon := '?'; IconColor := TColors.Gray;
+  end;
+  
+  // Draw icon
+  IconRect := AData.Bounds;
+  IconRect.Left := IconRect.Left + 8;
+  IconRect.Width := 16;
+  
+  Format.Font.Size := 14;
+  Format.Font.Color := IconColor;
+  Format.Font.Style := [fsBold];
+  
+  AData.Painter.SetFont(Format.Font);
+  
+  var Align := TTextAlign.Create(nil);
+  try
+    Align.Horizontal := THorizontalAlign.Left;
+    Align.Vertical := TVerticalAlign.Center;
+    AData.Painter.TextOut(IconRect, Icon, Align);
+  finally
+    Align.Free;
+  end;
+  
+  // Draw status text
+  var TextRect := AData.Bounds;
+  TextRect.Left := IconRect.Right + 4;
+  
+  Format.Font.Size := 10;
+  Format.Font.Color := TColors.Black;
+  Format.Font.Style := [];
+  
+  AData.Data := Status;
+  inherited Paint(AData);
+end;
+
+// Usage
+procedure TForm1.SetupStatusColumn;
+var
+  StatusRender: TStatusIconRender;
+begin
+  StatusRender := TStatusIconRender.Create(nil);
+  TeeGrid1.Columns['Status'].Render := StatusRender;
+end;
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Paint methods efficient">
+    The `Paint` method is called for every visible cell. Avoid heavy calculations, file I/O, or object creation inside `Paint`. Cache resources when possible.
+  </Accordion>
+  
+  <Accordion title="Use inherited Paint wisely">
+    Call `inherited Paint(AData)` when you want default rendering before or after your custom painting. Don't call it if you're completely replacing the default rendering.
+  </Accordion>
+  
+  <Accordion title="Respect cell boundaries">
+    Always draw within `AData.Bounds`. Drawing outside these bounds can cause visual artifacts and overlap with adjacent cells.
+  </Accordion>
+  
+  <Accordion title="Handle empty data gracefully">
+    Check if data is empty or invalid before rendering. Use `AData.IsEmpty` or validate the data format.
+  </Accordion>
+</AccordionGroup>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Styling" icon="palette" href="/customization/styling">
+    Configure colors, fonts, and borders
+  </Card>
+  
+  <Card title="TRender API" icon="code" href="/api/trender">
+    Complete API reference for render classes
+  </Card>
+  
+  <Card title="TPainter API" icon="paintbrush" href="/api/tpainter">
+    Drawing interface for custom rendering
+  </Card>
+  
+  <Card title="Custom Editors" icon="edit" href="/examples/custom-editors">
+    Create custom cell editors
+  </Card>
+</CardGroup>

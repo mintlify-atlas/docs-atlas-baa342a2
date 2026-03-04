@@ -1,0 +1,351 @@
+---
+title: Custom Bands
+description: Add custom header and footer bands to your grid
+---
+
+Bands are rectangular regions in TeeGrid that can display custom content. They're commonly used for headers, footers, and custom informational sections.
+
+## Understanding Bands
+
+A band is a `TGridBand` object - a rectangle with support for:
+
+- Mouse hover highlighting
+- Custom height
+- Click events
+- Custom rendering
+
+TeeGrid uses bands for:
+
+- **Headers** - Column headers and grid titles
+- **Footers** - Totals and summary information
+- **Rows** - The data rows themselves
+
+## Band Properties
+
+All bands share these properties:
+
+```delphi
+// Height of the band
+Band.Height.Value := 30;  // Fixed height in pixels
+Band.Height.Percent := 10;  // Or percentage of total height
+
+// Visibility
+Band.Visible := True;
+
+// Click handler
+Band.OnClick := BandClickHandler;
+```
+
+## Headers Collection
+
+Add multiple header bands:
+
+```delphi
+// Headers is a collection of TGridBand
+TeeGrid1.Headers.Visible := True;
+
+// Add a text band to headers
+var
+  TitleBand: TTextBand;
+begin
+  TitleBand := TTextBand(TeeGrid1.Headers.Add);
+  TitleBand.Text := 'Customer List';
+  TitleBand.Height.Value := 40;
+  TitleBand.TextRender.Format.Font.Size := 16;
+  TitleBand.TextRender.Format.Font.Style := [fsBold];
+  TitleBand.TextRender.Format.Brush.Color := clNavy;
+  TitleBand.TextRender.Format.Brush.Visible := True;
+  TitleBand.TextRender.Format.Font.Color := clWhite;
+end;
+```
+
+## Footer Collection
+
+Add multiple footer bands:
+
+```delphi
+TeeGrid1.Footer.Visible := True;
+
+// Add a simple text footer
+var
+  FooterBand: TTextBand;
+begin
+  FooterBand := TeeGrid1.Footer.AddText('Total Records: ' + 
+                                         IntToStr(TeeGrid1.Data.Count));
+  FooterBand.Height.Value := 25;
+  FooterBand.TextRender.Format.Brush.Color := clSilver;
+  FooterBand.TextRender.Format.Brush.Visible := True;
+end;
+```
+
+## AddText Helper Method
+
+Quickly add text bands:
+
+```delphi
+// AddText returns TTextBand
+var
+  Band: TTextBand;
+begin
+  Band := TeeGrid1.Headers.AddText('Grid Title');
+  Band.TextRender.Format.Font.Size := 14;
+  Band.TextRender.Format.Font.Style := [fsBold];
+end;
+```
+
+## TTextBand
+
+`TTextBand` is a band that displays text:
+
+```delphi
+var
+  TextBand: TTextBand;
+begin
+  TextBand := TTextBand.Create(TeeGrid1.Headers);
+  TextBand.Text := 'My Header';
+  
+  // Format the text
+  TextBand.TextRender.Format.Font.Color := clBlue;
+  TextBand.TextRender.Format.Font.Size := 12;
+  TextBand.TextRender.Format.Brush.Color := clWhite;
+  TextBand.TextRender.Format.Brush.Visible := True;
+  
+  // Text alignment
+  TextBand.TextRender.Format.TextAlign.Horizontal := THorizontalAlign.Center;
+  TextBand.TextRender.Format.TextAlign.Vertical := TVerticalAlign.Center;
+end;
+```
+
+## Column Header Band
+
+The main header showing column names is a special `TColumnHeaderBand`:
+
+```delphi
+// Access the column header
+TeeGrid1.Header.Visible := True;
+TeeGrid1.Header.Height.Value := 25;
+
+// Format column headers
+TeeGrid1.Header.Format.Brush.Color := clSilver;
+TeeGrid1.Header.Format.Brush.Visible := True;
+TeeGrid1.Header.Format.Font.Style := [fsBold];
+
+// Enable column resizing
+TeeGrid1.Header.AllowResize := True;
+
+// Enable column dragging
+TeeGrid1.Header.Drag.Allow := True;
+
+// Row lines for multi-level headers
+TeeGrid1.Header.RowLines.Visible := True;
+TeeGrid1.Header.RowLines.Color := clGray;
+```
+
+## Custom Band Classes
+
+Create a custom band by inheriting from `TGridBand`:
+
+```delphi
+type
+  TMyCustomBand = class(TGridBand)
+  private
+    FMyData: String;
+  protected
+    procedure Paint(var AData: TRenderData; const ARender: TRender); override;
+  public
+    property MyData: String read FMyData write FMyData;
+  end;
+
+procedure TMyCustomBand.Paint(var AData: TRenderData; const ARender: TRender);
+begin
+  // Custom painting logic
+  AData.Painter.Fill.Color := clYellow;
+  AData.Painter.FillRectangle(AData.Bounds);
+  
+  // Draw custom text
+  AData.Painter.Font.Color := clBlack;
+  AData.Painter.TextOut(AData.Bounds.Left + 10, AData.Bounds.Top + 5, FMyData);
+end;
+
+// Usage
+var
+  CustomBand: TMyCustomBand;
+begin
+  CustomBand := TMyCustomBand.Create(TeeGrid1.Headers);
+  CustomBand.MyData := 'Custom Data';
+  CustomBand.Height.Value := 30;
+end;
+```
+
+## Band Events
+
+### OnClick
+
+Handle band clicks:
+
+```delphi
+procedure TForm1.BandClick(Sender: TObject);
+var
+  Band: TGridBand;
+begin
+  Band := TGridBand(Sender);
+  ShowMessage('Band clicked: ' + Band.ClassName);
+end;
+
+// Assign event
+TitleBand.OnClick := BandClick;
+```
+
+## Floating Bands
+
+Make bands float over content:
+
+```delphi
+TeeGrid1.Headers.Floating := True;
+// Headers will overlay content instead of pushing it down
+```
+
+## Band Height Modes
+
+### Fixed Height
+
+```delphi
+Band.Height.Value := 40;  // 40 pixels
+```
+
+### Percentage Height
+
+```delphi
+Band.Height.Percent := 15;  // 15% of available height
+```
+
+### Auto Height
+
+For text bands, height can auto-calculate based on text:
+
+```delphi
+Band.Height.Automatic := True;
+```
+
+## Multiple Headers Example
+
+Create a grid with title and column headers:
+
+```delphi
+procedure TForm1.SetupHeaders;
+var
+  TitleBand: TTextBand;
+  InfoBand: TTextBand;
+begin
+  // Add title
+  TitleBand := TeeGrid1.Headers.AddText('Sales Report');
+  TitleBand.Height.Value := 35;
+  TitleBand.TextRender.Format.Font.Size := 16;
+  TitleBand.TextRender.Format.Font.Style := [fsBold];
+  TitleBand.TextRender.Format.Brush.Color := TAlphaColors.Darkblue;
+  TitleBand.TextRender.Format.Brush.Visible := True;
+  TitleBand.TextRender.Format.Font.Color := TAlphaColors.White;
+  
+  // Add info band
+  InfoBand := TeeGrid1.Headers.AddText('Q4 2024');
+  InfoBand.Height.Value := 25;
+  InfoBand.TextRender.Format.Brush.Color := TAlphaColors.Lightblue;
+  InfoBand.TextRender.Format.Brush.Visible := True;
+  
+  // Column headers are automatic
+  TeeGrid1.Header.Visible := True;
+  TeeGrid1.Header.Height.Value := 30;
+end;
+```
+
+## Footer with Totals
+
+Add calculated totals in footer:
+
+```delphi
+uses
+  Tee.Grid.Totals;
+
+procedure TForm1.SetupFooter;
+var
+  Totals: TColumnTotals;
+  TotalBand: TTotalsHeader;
+begin
+  // Create totals band
+  Totals := TColumnTotals.Create(TeeGrid1.Footer);
+  
+  // Add calculations
+  Totals.Calculation.Add('Amount', TColumnCalculation.Sum);
+  Totals.Calculation.Add('Quantity', TColumnCalculation.Sum);
+  Totals.Calculation.Add('Price', TColumnCalculation.Average);
+  
+  // Add header for totals
+  TotalBand := TTotalsHeader.CreateTotals(TeeGrid1.Footer, Totals);
+  TotalBand.Text := 'Totals:';
+end;
+```
+
+## Bands in Sub-Grids
+
+Each `TRowGroup` has its own headers and footers:
+
+```delphi
+procedure TForm1.NewDetailGroup(const Sender, NewGroup: TRowGroup);
+var
+  DetailTitle: TTextBand;
+begin
+  // Add header to detail grid
+  DetailTitle := NewGroup.Headers.AddText('Order Details');
+  DetailTitle.Height.Value := 25;
+  DetailTitle.TextRender.Format.Brush.Color := clLightGray;
+  DetailTitle.TextRender.Format.Brush.Visible := True;
+  
+  // The detail grid has its own column header
+  NewGroup.Header.Visible := True;
+end;
+```
+
+## Band Spacing
+
+```delphi
+// Spacing between bands (default: 0)
+TeeGrid1.Headers.Spacing := 2;  // 2 pixels between each header band
+```
+
+## Hiding/Showing Bands
+
+```delphi
+// Hide all headers
+TeeGrid1.Headers.Visible := False;
+
+// Hide column header only
+TeeGrid1.Header.Visible := False;
+
+// Hide specific band
+TitleBand.Visible := False;
+
+// Hide all footers
+TeeGrid1.Footer.Visible := False;
+```
+
+## Band Lines
+
+Add borders to bands:
+
+```delphi
+// For TGridBandLines descendants
+TitleBand.Lines.Visible := True;
+TitleBand.Lines.Color := clGray;
+TitleBand.Lines.Width := 1;
+```
+
+## Best Practices
+
+- Use `AddText()` for simple text headers/footers
+- Keep band heights reasonable (20-40 pixels for text)
+- Use percentage heights sparingly, as they change with window size
+- Group related information in separate bands
+- Use consistent colors for visual hierarchy
+- Consider `Floating := True` for overlay effects
+- Remember that each sub-grid has its own header/footer collections
+- Use custom band classes for complex rendering needs

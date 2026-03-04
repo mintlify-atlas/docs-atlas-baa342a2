@@ -1,0 +1,471 @@
+---
+title: "Locked Columns"
+description: "Pin columns to the left or right edges of the grid for easy reference while scrolling"
+---
+
+Locked columns remain visible at fixed positions while other columns scroll horizontally. This is useful for keeping key identifier columns (like names or IDs) always visible, or for pinning action columns to the right edge.
+
+## Overview
+
+TeeGrid supports three locking modes for columns:
+
+- **None** — Column scrolls normally with other columns
+- **Left** — Column is locked to the left edge of the grid
+- **Right** — Column is locked to the right edge of the grid
+
+When you lock columns, they're excluded from horizontal scrolling and remain fixed in their positions.
+
+## Basic Usage
+
+### Locking a Column
+
+```pascal
+// Lock column to the left edge
+TeeGrid1.Columns['ID'].Locked := TColumnLocked.Left;
+
+// Lock column to the right edge  
+TeeGrid1.Columns['Actions'].Locked := TColumnLocked.Right;
+
+// Unlock column (default)
+TeeGrid1.Columns['Name'].Locked := TColumnLocked.None;
+```
+
+### Locking by Index
+
+```pascal
+// Lock the first column to the left
+TeeGrid1.Columns[0].Locked := TColumnLocked.Left;
+
+// Lock the last column to the right
+TeeGrid1.Columns[TeeGrid1.Columns.Count - 1].Locked := TColumnLocked.Right;
+```
+
+## Column Lock Types
+
+```pascal
+type
+  TColumnLocked = (None, Left, Right);
+```
+
+<CodeGroup>
+```pascal Left Locked
+// Lock multiple columns to the left
+TeeGrid1.Columns['ID'].Locked := TColumnLocked.Left;
+TeeGrid1.Columns['Name'].Locked := TColumnLocked.Left;
+// These columns stay visible on the left while others scroll
+```
+
+```pascal Right Locked
+// Lock columns to the right
+TeeGrid1.Columns['Total'].Locked := TColumnLocked.Right;
+TeeGrid1.Columns['Actions'].Locked := TColumnLocked.Right;
+// These columns stay visible on the right while others scroll
+```
+
+```pascal Mixed Locking
+// Lock columns to both sides
+TeeGrid1.Columns['ID'].Locked := TColumnLocked.Left;
+TeeGrid1.Columns['Name'].Locked := TColumnLocked.Left;
+TeeGrid1.Columns['Edit'].Locked := TColumnLocked.Right;
+TeeGrid1.Columns['Delete'].Locked := TColumnLocked.Right;
+// Middle columns scroll between locked columns
+```
+</CodeGroup>
+
+## Visual Differentiation
+
+Visually distinguish locked columns from scrollable ones:
+
+```pascal
+procedure TForm1.StyleLockedColumn(const AColumn: TColumn; 
+  const ALocked: TColumnLocked);
+begin
+  AColumn.Locked := ALocked;
+  
+  if ALocked = TColumnLocked.None then
+    AColumn.ParentFormat := True  // Use default grid formatting
+  else
+  begin
+    // Apply custom styling to locked columns
+    AColumn.ParentFormat := False;
+    AColumn.Format.Brush.Show;
+    
+    if ALocked = TColumnLocked.Left then
+      AColumn.Format.Brush.Color := TColors.Navajowhite
+    else
+      AColumn.Format.Brush.Color := TColors.Salmon;
+  end;
+end;
+
+// Usage
+StyleLockedColumn(TeeGrid1.Columns['ID'], TColumnLocked.Left);
+StyleLockedColumn(TeeGrid1.Columns['Actions'], TColumnLocked.Right);
+```
+
+## Complete Example
+
+Here's a complete example from the TeeGrid demos showing locked columns:
+
+```pascal
+unit Unit_Locked_Columns;
+
+interface
+
+uses
+  Winapi.Windows, System.SysUtils, System.Classes, Vcl.Controls, 
+  Vcl.Forms, VCLTee.Grid, Tee.GridData.Strings, Tee.Grid.Columns;
+
+type
+  TFormLocked = class(TForm)
+    TeeGrid1: TTeeGrid;
+    procedure FormCreate(Sender: TObject);
+  private
+    Data: TStringsData;
+    procedure SetupGrid;
+    procedure SetLocked(const AColumn: TColumn; 
+      const ALocked: TColumnLocked);
+  end;
+
+implementation
+
+uses
+  System.UITypes;
+
+procedure TFormLocked.FormCreate(Sender: TObject);
+begin
+  // Create data with 30 columns and 100 rows
+  Data := TStringsData.Create(30, 100);
+  
+  SetupGrid;
+end;
+
+procedure TFormLocked.SetupGrid;
+var
+  Col, Row: Integer;
+begin
+  // Fill data
+  for Col := 0 to Data.Columns - 1 do
+  begin
+    Data.Headers[Col] := Chr(Ord('A') + Col);
+    
+    for Row := 0 to Data.Rows - 1 do
+      Data[Col, Row] := IntToStr(Col) + ' x ' + IntToStr(Row);
+  end;
+  
+  // Bind data to grid
+  TeeGrid1.Data := Data;
+  
+  // Enable multi-field copy-paste
+  TeeGrid1.Grid.QuoteStringsOnCopy := False;
+  TeeGrid1.Grid.CopyFieldSeparator := ';';
+  TeeGrid1.Selected.Range.Enabled := True;
+  
+  // Lock columns
+  SetLocked(TeeGrid1.Columns['A'], TColumnLocked.Left);
+  SetLocked(TeeGrid1.Columns['B'], TColumnLocked.Right);
+end;
+
+procedure TFormLocked.SetLocked(const AColumn: TColumn; 
+  const ALocked: TColumnLocked);
+begin
+  AColumn.Locked := ALocked;
+  
+  if ALocked = TColumnLocked.None then
+    AColumn.ParentFormat := True
+  else
+  begin
+    AColumn.ParentFormat := False;
+    AColumn.Format.Brush.Show;
+    
+    if ALocked = TColumnLocked.Left then
+      AColumn.Format.Brush.Color := TColors.Navajowhite
+    else
+      AColumn.Format.Brush.Color := TColors.Salmon;
+  end;
+end;
+
+end.
+```
+
+## Interactive Locking
+
+Allow users to lock/unlock columns at runtime:
+
+```pascal
+procedure TForm1.ToggleColumnLock(const AColumn: TColumn);
+begin
+  case AColumn.Locked of
+    TColumnLocked.None:
+      AColumn.Locked := TColumnLocked.Left;
+    TColumnLocked.Left:
+      AColumn.Locked := TColumnLocked.Right;
+    TColumnLocked.Right:
+      AColumn.Locked := TColumnLocked.None;
+  end;
+  
+  // Update visual styling
+  StyleLockedColumn(AColumn, AColumn.Locked);
+  
+  // Refresh grid
+  TeeGrid1.Invalidate;
+end;
+
+// Call from context menu or button click
+procedure TForm1.MenuLockColumnClick(Sender: TObject);
+begin
+  if TeeGrid1.Selected.Column <> nil then
+    ToggleColumnLock(TeeGrid1.Selected.Column);
+end;
+```
+
+## Context Menu for Column Locking
+
+```pascal
+procedure TForm1.SetupColumnContextMenu;
+var
+  Menu: TPopupMenu;
+  ItemLockLeft, ItemLockRight, ItemUnlock: TMenuItem;
+begin
+  Menu := TPopupMenu.Create(Self);
+  
+  ItemLockLeft := TMenuItem.Create(Menu);
+  ItemLockLeft.Caption := 'Lock to Left';
+  ItemLockLeft.OnClick := procedure(Sender: TObject)
+  begin
+    if TeeGrid1.Selected.Column <> nil then
+      SetLocked(TeeGrid1.Selected.Column, TColumnLocked.Left);
+  end;
+  Menu.Items.Add(ItemLockLeft);
+  
+  ItemLockRight := TMenuItem.Create(Menu);
+  ItemLockRight.Caption := 'Lock to Right';
+  ItemLockRight.OnClick := procedure(Sender: TObject)
+  begin
+    if TeeGrid1.Selected.Column <> nil then
+      SetLocked(TeeGrid1.Selected.Column, TColumnLocked.Right);
+  end;
+  Menu.Items.Add(ItemLockRight);
+  
+  ItemUnlock := TMenuItem.Create(Menu);
+  ItemUnlock.Caption := 'Unlock';
+  ItemUnlock.OnClick := procedure(Sender: TObject)
+  begin
+    if TeeGrid1.Selected.Column <> nil then
+      SetLocked(TeeGrid1.Selected.Column, TColumnLocked.None);
+  end;
+  Menu.Items.Add(ItemUnlock);
+  
+  TeeGrid1.PopupMenu := Menu;
+end;
+```
+
+## Locked Column Borders
+
+Add visual separators between locked and scrollable columns:
+
+```pascal
+procedure TForm1.AddLockedColumnBorders;
+var
+  I: Integer;
+  Column: TColumn;
+begin
+  for I := 0 to TeeGrid1.Columns.Count - 1 do
+  begin
+    Column := TeeGrid1.Columns[I];
+    
+    if Column.Locked = TColumnLocked.Left then
+    begin
+      // Add right border to left-locked columns
+      Column.Format.Stroke.Visible := True;
+      Column.Format.Stroke.Color := TColors.DkGray;
+      Column.Format.Stroke.Size := 2;
+    end
+    else if Column.Locked = TColumnLocked.Right then
+    begin
+      // Add left border to right-locked columns  
+      Column.Format.Stroke.Visible := True;
+      Column.Format.Stroke.Color := TColors.DkGray;
+      Column.Format.Stroke.Size := 2;
+    end;
+  end;
+end;
+```
+
+## Checking for Locked Columns
+
+```pascal
+// Check if grid has any locked columns
+function HasLockedColumns: Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  for I := 0 to TeeGrid1.Columns.Count - 1 do
+  begin
+    if TeeGrid1.Columns[I].Locked <> TColumnLocked.None then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+// Count locked columns by type
+function CountLockedColumns(const LockType: TColumnLocked): Integer;
+var
+  I: Integer;
+begin
+  Result := 0;
+  for I := 0 to TeeGrid1.Columns.Count - 1 do
+    if TeeGrid1.Columns[I].Locked = LockType then
+      Inc(Result);
+end;
+
+// Usage
+var
+  LeftCount, RightCount: Integer;
+begin
+  LeftCount := CountLockedColumns(TColumnLocked.Left);
+  RightCount := CountLockedColumns(TColumnLocked.Right);
+  
+  ShowMessage(Format('Locked: %d left, %d right', [LeftCount, RightCount]));
+end;
+```
+
+## Saving and Restoring Lock State
+
+```pascal
+// Save locked column configuration
+procedure TForm1.SaveColumnLockState;
+var
+  I: Integer;
+  IniFile: TIniFile;
+begin
+  IniFile := TIniFile.Create('grid_config.ini');
+  try
+    for I := 0 to TeeGrid1.Columns.Count - 1 do
+    begin
+      IniFile.WriteInteger('ColumnLocks', 
+        TeeGrid1.Columns[I].Header.Text,
+        Ord(TeeGrid1.Columns[I].Locked));
+    end;
+  finally
+    IniFile.Free;
+  end;
+end;
+
+// Restore locked column configuration
+procedure TForm1.LoadColumnLockState;
+var
+  I: Integer;
+  IniFile: TIniFile;
+  LockValue: Integer;
+begin
+  IniFile := TIniFile.Create('grid_config.ini');
+  try
+    for I := 0 to TeeGrid1.Columns.Count - 1 do
+    begin
+      LockValue := IniFile.ReadInteger('ColumnLocks',
+        TeeGrid1.Columns[I].Header.Text,
+        Ord(TColumnLocked.None));
+      
+      SetLocked(TeeGrid1.Columns[I], TColumnLocked(LockValue));
+    end;
+  finally
+    IniFile.Free;
+  end;
+end;
+```
+
+## Locked Columns with Selection
+
+Locked columns work seamlessly with cell selection and range selection:
+
+```pascal
+// Enable range selection across locked and unlocked columns
+TeeGrid1.Selected.Range.Enabled := True;
+
+// Selection spans locked and scrollable columns
+procedure TForm1.SelectAcrossLocked;
+begin
+  // Select from locked column to scrollable column
+  TeeGrid1.Selected.Range.FromColumn := TeeGrid1.Columns['ID'];  // Locked left
+  TeeGrid1.Selected.Range.ToColumn := TeeGrid1.Columns['Name'];  // Not locked
+  TeeGrid1.Selected.Range.FromRow := 0;
+  TeeGrid1.Selected.Range.ToRow := 10;
+end;
+```
+
+## Performance Considerations
+
+<AccordionGroup>
+  <Accordion title="Painting optimization">
+    TeeGrid optimizes painting of locked columns. Locked columns are only repainted when necessary, not during horizontal scrolling.
+  </Accordion>
+  
+  <Accordion title="Locked column count">
+    While there's no hard limit on locked columns, keeping the count reasonable (2-4 on each side) provides the best user experience and performance.
+  </Accordion>
+  
+  <Accordion title="Width calculations">
+    Locked columns reduce the available space for scrollable columns. Ensure your locked columns don't consume too much horizontal space.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Tip>
+**Lock key identifier columns** — Lock columns containing IDs, names, or other key identifiers to the left so users can always see what row they're looking at.
+</Tip>
+
+<Tip>
+**Lock action columns to the right** — Columns with buttons, checkboxes, or action icons work well locked to the right edge.
+</Tip>
+
+<Tip>
+**Provide visual distinction** — Use different background colors or borders to help users distinguish locked columns from scrollable ones.
+</Tip>
+
+<Tip>
+**Save user preferences** — If users can lock/unlock columns, save their preferences and restore them on application startup.
+</Tip>
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Financial data grids">
+    Lock account name/number columns to the left, and total/balance columns to the right.
+  </Accordion>
+  
+  <Accordion title="Inventory management">
+    Lock product ID and name to the left, with action buttons (edit/delete) locked to the right.
+  </Accordion>
+  
+  <Accordion title="Contact lists">
+    Lock name column to the left so it remains visible while scrolling through many contact detail columns.
+  </Accordion>
+  
+  <Accordion title="Log viewers">
+    Lock timestamp column to the left for time reference while viewing log details.
+  </Accordion>
+</AccordionGroup>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Columns" icon="table-columns" href="/concepts/columns">
+    Learn about column configuration and properties
+  </Card>
+  
+  <Card title="Selection" icon="hand-pointer" href="/features/selection">
+    Work with cell and range selection
+  </Card>
+  
+  <Card title="Styling" icon="palette" href="/customization/styling">
+    Customize column appearance
+  </Card>
+  
+  <Card title="TColumn API" icon="code" href="/api/tcolumn">
+    Complete API reference for columns
+  </Card>
+</CardGroup>

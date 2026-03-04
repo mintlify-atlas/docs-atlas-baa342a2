@@ -1,0 +1,532 @@
+---
+title: "Column System"
+description: "Understanding TeeGrid's flexible column hierarchy and configuration options"
+---
+
+## Overview
+
+TeeGrid's column system is built on a hierarchical model where columns can contain sub-columns, enabling sophisticated layouts like grouped headers and multi-level column organization.
+
+## TColumn Class
+
+The `TColumn` class (defined in `Tee.Grid.Columns.pas`) represents a single column in the grid.
+
+### Core Properties
+
+<ParamField path="Header" type="TColumnHeader">
+  Configures the column header display:
+  - `Text`: Header caption
+  - `ParentFormat`: Inherit formatting from parent
+  - `TextAlignment`: Automatic or custom alignment
+  - `Format`: Brush, stroke, font, and margins
+</ParamField>
+
+<ParamField path="Width" type="TColumnWidth">
+  Column width configuration:
+  - `Automatic`: Auto-size based on content
+  - `Value`: Fixed pixel width
+  - `Percent`: Percentage of available width (e.g., 25 for 25%)
+</ParamField>
+
+<ParamField path="Items" type="TColumns">
+  Collection of sub-columns for hierarchical layouts. When a column has items, it acts as a container/group for its children.
+</ParamField>
+
+<ParamField path="Expanded" type="Boolean" default="True">
+  Controls visibility of sub-columns. When `False`, child columns are hidden.
+</ParamField>
+
+<ParamField path="Visible" type="Boolean" default="True">
+  Controls column visibility. Hidden columns don't render or occupy space.
+</ParamField>
+
+<ParamField path="ReadOnly" type="Boolean" default="False">
+  Prevents editing for this column. Users can select but not modify cell values.
+</ParamField>
+
+<ParamField path="Selectable" type="Boolean" default="True">
+  Controls whether cells in this column can be selected.
+</ParamField>
+
+### Formatting Properties
+
+<ParamField path="Format" type="TFormat">
+  Visual formatting:
+  - `Brush`: Background fill
+  - `Stroke`: Border and lines
+  - `Font`: Text appearance
+</ParamField>
+
+<ParamField path="DataFormat" type="TDataFormat">
+  Data-specific formatting:
+  - `Float`: Number format string (default: "0.###")
+  - `Date`: Date format string
+  - `DateTime`: DateTime format string
+  - `Time`: Time format string
+</ParamField>
+
+<ParamField path="TextAlign" type="TTextAlign">
+  Horizontal and vertical text alignment within cells:
+  ```pascal
+  Column.TextAlign.Horizontal := THorizontalAlign.Center;
+  Column.TextAlign.Vertical := TVerticalAlign.Center;
+  ```
+</ParamField>
+
+<ParamField path="TextAlignment" type="TColumnTextAlign">
+  - `Automatic`: Right-align numbers, left-align text
+  - `Custom`: Use explicitly set TextAlign values
+</ParamField>
+
+<ParamField path="Margins" type="TMargins">
+  Cell content padding (Left, Top, Right, Bottom).
+</ParamField>
+
+### Advanced Features
+
+<ParamField path="Render" type="TRender">
+  Custom renderer for cell content. Override default text rendering with:
+  - Progress bars
+  - Images
+  - Buttons
+  - Charts
+  - Custom graphics
+</ParamField>
+
+<ParamField path="Locked" type="TColumnLocked">
+  Pin columns:
+  - `None`: Normal scrolling
+  - `Left`: Fixed on left side
+  - `Right`: Fixed on right side
+</ParamField>
+
+<ParamField path="ParentFormat" type="Boolean" default="True">
+  When `True`, inherits formatting from parent column (if nested) or grid cells.
+</ParamField>
+
+<ParamField path="TagObject" type="TObject">
+  User-defined object reference. TeeGrid uses this internally to link columns to data fields/properties.
+</ParamField>
+
+<ParamField path="EditorClass" type="TClass">
+  Custom editor control class for cell editing. Override default TEdit behavior.
+</ParamField>
+
+## TColumns Collection
+
+The `TColumns` class manages a collection of TColumn objects.
+
+### Creating Columns
+
+<CodeGroup>
+```pascal Simple Creation
+var
+  Col: TColumn;
+begin
+  // Add empty column
+  Col := TeeGrid1.Columns.Add;
+  Col.Header.Text := 'Name';
+  
+  // Add with text
+  Col := TeeGrid1.Columns.Add('Email');
+end;
+```
+
+```pascal Fluent Configuration
+with TeeGrid1.Columns.Add do
+begin
+  Header.Text := 'Price';
+  Width.Automatic := False;
+  Width.Value := 100;
+  DataFormat.Float := '0.00';
+  TextAlignment := TColumnTextAlign.Custom;
+  TextAlign.Horizontal := THorizontalAlign.Right;
+end;
+```
+
+```pascal Accessing Columns
+var
+  Col: TColumn;
+begin
+  // By index
+  Col := TeeGrid1.Columns[0];
+  
+  // By name (Delphi only, not FPC)
+  Col := TeeGrid1.Columns['CustomerName'];
+  
+  // Find by name
+  Col := TeeGrid1.Columns.FindFirst('Email');
+end;
+```
+</CodeGroup>
+
+### Column Spacing
+
+```pascal
+// Set spacing between columns
+TeeGrid1.Columns.Spacing.Value := 2; // 2 pixels between columns
+```
+
+## Hierarchical Columns
+
+TeeGrid supports nested columns for grouped headers and complex layouts:
+
+```pascal
+var
+  Group: TColumn;
+begin
+  // Create a parent column group
+  Group := TeeGrid1.Columns.Add('Personal Info');
+  
+  // Add child columns
+  Group.Items.Add('First Name');
+  Group.Items.Add('Last Name');
+  Group.Items.Add('Age');
+  
+  // Create another group
+  Group := TeeGrid1.Columns.Add('Contact');
+  Group.Items.Add('Email');
+  Group.Items.Add('Phone');
+  
+  // Can nest multiple levels
+  with Group.Items.Add('Address') do
+  begin
+    Items.Add('Street');
+    Items.Add('City');
+    Items.Add('ZIP');
+  end;
+end;
+```
+
+**Visual Result:**
+
+```
+┌────────────────────────────┬─────────────────────────────────────┐
+│      Personal Info         │             Contact                 │
+├──────────┬──────────┬──────┼──────────┬────────┬────────────────┤
+│First Name│Last Name │  Age │  Email   │ Phone  │    Address     │
+│          │          │      │          │        ├─────┬────┬─────┤
+│          │          │      │          │        │Street│City│ ZIP │
+├──────────┴──────────┴──────┴──────────┴────────┴─────┴────┴─────┤
+│                         Data Rows...                              │
+```
+
+### Working with Hierarchy
+
+<Tabs>
+  <Tab title="Expand/Collapse">
+    ```pascal
+    // Collapse a column group (hides child columns)
+    TeeGrid1.Columns[0].Expanded := False;
+    
+    // Expand it again
+    TeeGrid1.Columns[0].Expanded := True;
+    
+    // Check if column has children
+    if TeeGrid1.Columns[0].HasItems then
+      ShowMessage('This column has sub-columns');
+    ```
+  </Tab>
+  
+  <Tab title="Navigation">
+    ```pascal
+    var
+      Col, ParentCol: TColumn;
+    begin
+      Col := TeeGrid1.Columns[0].Items[1]; // Child column
+      
+      // Get parent column
+      ParentCol := Col.Parent;
+      
+      // Get parent collection
+      if Col.ParentColumns <> nil then
+        ShowMessage('Parent collection count: ' + IntToStr(Col.ParentColumns.Count));
+      
+      // Get top-level parent
+      if Col.TopParent <> nil then
+        ShowMessage('Top-level parent');
+    end;
+    ```
+  </Tab>
+  
+  <Tab title="Level Information">
+    ```pascal
+    var
+      Col: TColumn;
+      Level: Integer;
+    begin
+      Col := TeeGrid1.Columns[0].Items[0].Items[2];
+      
+      // Get nesting level (0 = top level)
+      Level := Col.Level;
+      
+      // Get maximum level in entire grid
+      Level := TeeGrid1.Columns.LevelCount;
+    end;
+    ```
+  </Tab>
+</Tabs>
+
+## Column Width Management
+
+TeeGrid provides flexible width calculation:
+
+### Automatic Width
+
+```pascal
+// Auto-size based on content
+Column.Width.Automatic := True;
+
+// Grid calculates width by:
+// 1. Measuring header text
+// 2. Calling TVirtualData.AutoWidth() for content
+// 3. Taking the maximum
+```
+
+### Fixed Width
+
+```pascal
+// Set explicit pixel width
+Column.Width.Automatic := False;
+Column.Width.Value := 150;
+```
+
+### Percentage Width
+
+```pascal
+// Use percentage of available width
+Column.Width.Automatic := False;
+Column.Width.Percent := 25; // 25% of grid width
+```
+
+### Mixed Widths
+
+```pascal
+// Combine different width types
+TeeGrid1.Columns[0].Width.Value := 50;      // Fixed 50px
+TeeGrid1.Columns[1].Width.Automatic := True; // Auto-size
+TeeGrid1.Columns[2].Width.Percent := 30;    // 30% of remaining space
+TeeGrid1.Columns[3].Width.Percent := 70;    // 70% of remaining space
+```
+
+## Locked Columns
+
+Freeze columns at the left or right edge:
+
+```pascal
+// Lock first column (e.g., ID or Name)
+TeeGrid1.Columns[0].Locked := TColumnLocked.Left;
+
+// Lock last column (e.g., Total or Actions)
+TeeGrid1.Columns[TeeGrid1.Columns.Count - 1].Locked := TColumnLocked.Right;
+
+// Locked columns remain visible while others scroll horizontally
+```
+
+## Custom Column Events
+
+### OnPaint Event
+
+Customize cell painting on a per-column basis:
+
+```pascal
+procedure TForm1.ColumnPaint(const Sender: TColumn; var AData: TRenderData; 
+  var DefaultPaint: Boolean);
+begin
+  // Custom painting for this column
+  if AData.Row mod 2 = 0 then
+    AData.Painter.Fill(AData.Rect, TColors.LightGray);
+  
+  // Set DefaultPaint := False to skip default rendering
+end;
+
+begin
+  TeeGrid1.Columns[2].OnPaint := ColumnPaint;
+end;
+```
+
+## Visible Columns
+
+Internal helper class `TVisibleColumns` tracks currently visible columns:
+
+```pascal
+// TeeGrid uses this internally to:
+// - Determine which columns to render
+// - Handle mouse hit testing
+// - Calculate scrollbar ranges
+// - Navigate with keyboard (Tab, arrow keys)
+```
+
+## Indicator Column
+
+Special column showing row state:
+
+```pascal
+// Configure indicator
+TeeGrid1.Indicator.Visible := True;
+TeeGrid1.Indicator.Width.Value := 20;
+TeeGrid1.Indicator.Format.Brush.Color := TColors.LightBlue;
+
+// The indicator shows:
+// - Triangle for current row
+// - Different symbols for edit/insert state
+```
+
+## Column Reordering
+
+Columns can be moved programmatically:
+
+```pascal
+var
+  Col: TColumn;
+begin
+  // Move column from position 2 to position 0
+  Col := TeeGrid1.Columns[2];
+  Col.Index := 0;
+  
+  // Or swap two columns
+  TeeGrid1.Columns[0].Index := 3; // Moves column 0 to position 3
+end;
+```
+
+## Data Type Alignment
+
+Automatic alignment based on data types:
+
+```pascal
+// When TextAlignment = Automatic (default):
+// - Numbers: Right-aligned
+// - Dates/Times: Center-aligned
+// - Strings: Left-aligned
+// - Booleans: Center-aligned
+
+// Override for specific column:
+Column.TextAlignment := TColumnTextAlign.Custom;
+Column.TextAlign.Horizontal := THorizontalAlign.Center;
+```
+
+## Column Iteration
+
+```pascal
+var
+  Column: TColumn;
+  I: Integer;
+begin
+  // Simple iteration
+  for I := 0 to TeeGrid1.Columns.Count - 1 do
+  begin
+    Column := TeeGrid1.Columns[I];
+    // Process column
+  end;
+  
+  // Include nested columns
+  procedure ProcessColumns(Columns: TColumns);
+  var
+    I: Integer;
+  begin
+    for I := 0 to Columns.Count - 1 do
+    begin
+      // Process this column
+      ShowMessage(Columns[I].Header.Text);
+      
+      // Recurse into children
+      if Columns[I].HasItems then
+        ProcessColumns(Columns[I].Items);
+    end;
+  end;
+  
+  ProcessColumns(TeeGrid1.Columns);
+end;
+```
+
+## Column Best Practices
+
+<AccordionGroup>
+  <Accordion title="Performance" icon="gauge-high">
+    - Minimize custom painting in OnPaint - it's called for every visible cell
+    - Use `ParentFormat := True` when possible to reduce memory
+    - Avoid complex calculations in data format strings
+  </Accordion>
+  
+  <Accordion title="Usability" icon="user">
+    - Use descriptive header text
+    - Set appropriate column widths for content type
+    - Consider locked columns for key fields
+    - Make calculated/read-only columns obviously non-editable
+  </Accordion>
+  
+  <Accordion title="Hierarchy" icon="sitemap">
+    - Limit nesting to 2-3 levels for readability
+    - Use meaningful group names
+    - Consider whether hierarchy adds value vs complexity
+  </Accordion>
+  
+  <Accordion title="Formatting" icon="paint-brush">
+    - Use consistent date/number formats across similar columns
+    - Align numbers to the right for easy comparison
+    - Apply data formats at column level, not in AsString()
+  </Accordion>
+</AccordionGroup>
+
+## Common Patterns
+
+### Calculated Column
+
+```pascal
+var
+  TotalCol: TColumn;
+begin
+  // Add calculated column
+  TotalCol := TeeGrid1.Columns.Add('Total');
+  TotalCol.ReadOnly := True;
+  TotalCol.DataFormat.Float := '$0.00';
+  
+  // Calculation happens in TVirtualData.AsString()
+end;
+```
+
+### Image Column
+
+```pascal
+uses Tee.Grid.Columns, Tee.Renders;
+
+var
+  ImageCol: TColumn;
+begin
+  ImageCol := TeeGrid1.Columns.Add('Photo');
+  ImageCol.Render := TImageRender.Create(TeeGrid1);
+  ImageCol.Width.Value := 100;
+end;
+```
+
+### Boolean Column (Checkboxes)
+
+```pascal
+var
+  BoolCol: TColumn;
+begin
+  BoolCol := TeeGrid1.Columns.Add('Active');
+  // TeeGrid automatically renders booleans as checkboxes
+  BoolCol.TextAlign.Horizontal := THorizontalAlign.Center;
+end;
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Custom Renderers" icon="paint-brush" href="/customization/custom-renderers">
+    Create custom column rendering
+  </Card>
+  
+  <Card title="Data Binding" icon="link" href="/concepts/data-binding">
+    Learn how columns connect to data
+  </Card>
+  
+  <Card title="Locked Columns" icon="lock" href="/customization/locked-columns">
+    Deep dive into column freezing
+  </Card>
+  
+  <Card title="TColumn API" icon="code" href="/api/tcolumn">
+    Complete API reference
+  </Card>
+</CardGroup>

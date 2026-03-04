@@ -1,0 +1,304 @@
+---
+title: "Array Binding Example"
+description: "Display and edit arrays of records, objects, and simple types in TeeGrid"
+---
+
+## Overview
+
+TeeGrid can display and edit different kinds of arrays using RTTI (Runtime Type Information). This provides automatic column generation from your data structures.
+
+## Array of Records
+
+The most common use case is displaying an array of records:
+
+```pascal
+type
+  TAddress = record
+    Street: String;
+    Number: Integer;
+  end;
+
+  TPerson = record
+    Name: String;
+    Address: TAddress;      // Sub-record
+    BirthDate: TDateTime;
+    Children: Integer;
+    IsDeveloper: Boolean;
+    Height: Single;
+  end;
+
+var
+  MyData: TArray<TPerson>;
+
+procedure TFormArray.BRecordClick(Sender: TObject);
+begin
+  SetLength(MyData, 10);
+  FillMyData(MyData);  // Fill with sample data
+
+  // Bind array to grid - automatically creates columns from record fields
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(MyData);
+end;
+```
+
+## Array of Simple Types
+
+### Array of Integer
+
+```pascal
+var
+  MyIntegers: TArray<Integer>;
+
+procedure TFormArray.BIntegerClick(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyIntegers, 100);
+
+  for t := 0 to High(MyIntegers) do
+    MyIntegers[t] := Random(1000);
+
+  // Simple syntax
+  TeeGrid1.Data := TVirtualArrayData<Integer>.Create(MyIntegers);
+  
+  // Alternative (equivalent)
+  // TeeGrid1.Data := TVirtualData<TArray<Integer>>.Create(MyIntegers);
+end;
+```
+
+### Array of Float
+
+```pascal
+var
+  MyFloats: TArray<Single>;
+
+procedure TFormArray.BFloatClick(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyFloats, 200);
+
+  for t := 0 to High(MyFloats) do
+    MyFloats[t] := Random(1000) * 0.01;
+
+  TeeGrid1.Data := TVirtualData<TArray<Single>>.Create(MyFloats);
+end;
+```
+
+### Array of String
+
+```pascal
+var
+  MyStrings: TArray<String>;
+
+procedure TFormArray.BStringClick(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyStrings, 10);
+
+  for t := 0 to High(MyStrings) do
+    MyStrings[t] := 'Item ' + IntToStr(t);
+
+  TeeGrid1.Data := TVirtualData<TArray<String>>.Create(MyStrings);
+end;
+```
+
+## Array of Objects
+
+```pascal
+type
+  TVehicle = class(TPersistent)
+  public
+    Brand: String;
+  end;
+
+  TCar = class(TVehicle)
+  private
+    FSpeed: Double;
+  public
+    Wheels: Word;
+    Driver: TPerson;
+    property Speed: Double read FSpeed write FSpeed;
+  end;
+
+var
+  MyCars: TArray<TCar>;
+
+procedure TFormArray.BTObjectClick(Sender: TObject);
+begin
+  SetLength(MyCars, 10);
+  FillMyData(MyCars);  // Create and populate car objects
+
+  TeeGrid1.Data := TVirtualData<TArray<TCar>>.Create(MyCars);
+end;
+```
+
+<Warning>
+  Remember to free object instances in arrays when you're done:
+  ```pascal
+  procedure Clean(const ACars: TArray<TCar>);
+  var
+    t: Integer;
+  begin
+    for t := Low(ACars) to High(ACars) do
+      ACars[t].Free;
+  end;
+  ```
+</Warning>
+
+## Complete Example from Demos
+
+From `Unit_Array.pas` in the VirtualData demos:
+
+```pascal
+unit Unit_Array;
+
+interface
+
+uses
+  Vcl.Forms, VCLTee.Control, VCLTee.Grid, Vcl.StdCtrls, Vcl.ExtCtrls;
+
+type
+  TFormArray = class(TForm)
+    TeeGrid1: TTeeGrid;
+    BInteger: TButton;
+    BFloat: TButton;
+    BString: TButton;
+    BTObject: TButton;
+    BRecord: TButton;
+    procedure FormCreate(Sender: TObject);
+    procedure BIntegerClick(Sender: TObject);
+    procedure BFloatClick(Sender: TObject);
+    procedure BStringClick(Sender: TObject);
+    procedure BRecordClick(Sender: TObject);
+    procedure BTObjectClick(Sender: TObject);
+  end;
+
+implementation
+
+uses
+  Unit_MyData, Tee.GridData, Tee.GridData.Rtti;
+
+var
+  MyIntegers: TArray<Integer>;
+  MyFloats: TArray<Single>;
+  MyStrings: TArray<String>;
+  MyData: TArray<TPerson>;
+  MyCars: TArray<TCar>;
+
+procedure TFormArray.BIntegerClick(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyIntegers, 100);
+  for t := 0 to High(MyIntegers) do
+    MyIntegers[t] := Random(1000);
+
+  TeeGrid1.Data := TVirtualArrayData<Integer>.Create(MyIntegers);
+end;
+
+procedure TFormArray.BFloatClick(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyFloats, 200);
+  for t := 0 to High(MyFloats) do
+    MyFloats[t] := Random(1000) * 0.01;
+
+  TeeGrid1.Data := TVirtualData<TArray<Single>>.Create(MyFloats);
+end;
+
+procedure TFormArray.BStringClick(Sender: TObject);
+var
+  t: Integer;
+begin
+  SetLength(MyStrings, 10);
+  for t := 0 to High(MyStrings) do
+    MyStrings[t] := 'Sample ' + IntToStr(t);
+
+  TeeGrid1.Data := TVirtualData<TArray<String>>.Create(MyStrings);
+end;
+
+procedure TFormArray.BRecordClick(Sender: TObject);
+begin
+  SetLength(MyData, 10);
+  FillMyData(MyData);
+
+  TeeGrid1.Data := TVirtualData<TArray<TPerson>>.Create(MyData);
+end;
+
+procedure TFormArray.BTObjectClick(Sender: TObject);
+begin
+  SetLength(MyCars, 10);
+  FillMyData(MyCars);
+
+  TeeGrid1.Data := TVirtualData<TArray<TCar>>.Create(MyCars);
+end;
+
+procedure TFormArray.FormCreate(Sender: TObject);
+begin
+  // Start with array of records
+  BRecordClick(Self);
+  
+  // Enable multi-line text in cells
+  TeeGrid1.Rows.Height.Automatic := True;
+end;
+
+end.
+```
+
+## Key Concepts
+
+### Automatic Column Generation
+
+TeeGrid uses RTTI to automatically:
+- Detect all public fields and published properties
+- Create columns with appropriate editors (string, numeric, date, boolean)
+- Handle nested records (creates sub-columns)
+- Format data appropriately (dates, floats, etc.)
+
+### Sub-Records
+
+Nested records are automatically expanded:
+
+```pascal
+TAddress = record
+  Street: String;
+  Number: Integer;
+end;
+
+TPerson = record
+  Name: String;
+  Address: TAddress;  // Creates "Address.Street" and "Address.Number" columns
+end;
+```
+
+### Data Formatting
+
+```pascal
+// Format float columns
+TeeGrid1.Columns['Height'].DataFormat.Float := '0.##';
+
+// Format date columns
+TeeGrid1.Columns['BirthDate'].DataFormat.DateTime := 'mm-dd-yyyy';
+```
+
+## Features Demonstrated
+
+- Array of simple types (Integer, Single, String)
+- Array of records with nested structures
+- Array of object instances
+- Automatic column generation via RTTI
+- Custom data formatting
+
+## Next Steps
+
+- Learn about [List Binding](/examples/list-binding) for TList&lt;T&gt;
+- Explore [Custom Editors](/examples/custom-editors) for cell editing
+- See [Custom Sorting](/examples/custom-sorting) to enable sorting
+
+## Related Examples
+
+- [List Binding](/examples/list-binding)
+- [Dataset Binding](/examples/dataset-binding)
+- [Virtual Mode](/examples/virtual-mode)

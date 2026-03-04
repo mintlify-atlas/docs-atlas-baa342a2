@@ -1,0 +1,490 @@
+---
+title: "TRowGroup"
+description: "Grid band that paints headers, cell rows, and footers with full grid functionality"
+---
+
+## Overview
+
+`TRowGroup` is a comprehensive grid band class that paints headers, cell rows, and footers. It provides the main grid functionality including data binding, column management, selection, scrolling, and editing. It supports hierarchical master-detail structures through sub-grids.
+
+## Key Properties
+
+<ParamField path="Columns" type="TColumns">
+  Collection of columns displayed in the grid. Each column defines how data is displayed and formatted.
+  
+  ```pascal
+  Grid.Columns.Add('Name');
+  Grid.Columns.Add('Email');
+  ```
+</ParamField>
+
+<ParamField path="Rows" type="TRows">
+  The rows band that displays data cells. Contains all row-related properties like height, spacing, and data source.
+  
+  ```pascal
+  Grid.Rows.Height.Value := 25;
+  Grid.Rows.Data := MyVirtualData;
+  ```
+</ParamField>
+
+<ParamField path="Header" type="TColumnHeaderBand">
+  The header band that displays column headers. Controls the appearance and behavior of the column header row.
+  
+  ```pascal
+  Grid.Header.Height.Value := 30;
+  Grid.Header.Visible := True;
+  ```
+</ParamField>
+
+<ParamField path="Headers" type="TGridBands">
+  Collection of additional header bands. Allows multiple header rows above the main header.
+  
+  ```pascal
+  var
+    ExtraHeader: TGridBand;
+  begin
+    ExtraHeader := Grid.Headers.Add;
+    ExtraHeader.Height.Value := 25;
+  end;
+  ```
+</ParamField>
+
+<ParamField path="Footer" type="TGridBands">
+  Collection of footer bands. Allows adding footer rows below the data rows.
+  
+  ```pascal
+  var
+    FooterBand: TGridBand;
+  begin
+    FooterBand := Grid.Footer.Add;
+    FooterBand.Height.Value := 25;
+  end;
+  ```
+</ParamField>
+
+<ParamField path="Indicator" type="TIndicator">
+  Special column displayed as the leftmost column showing row state indicators (browse, edit, insert).
+  
+  ```pascal
+  Grid.Indicator.Visible := True;
+  Grid.Indicator.Width.Value := 20;
+  ```
+</ParamField>
+
+<ParamField path="Selected" type="TGridSelection">
+  Selection properties defining which cells or rows are selected and how they appear.
+  
+  ```pascal
+  Grid.Selected.Column := Grid.Columns[0];
+  Grid.Selected.Row := 5;
+  Grid.Selected.Format.Brush.Color := clHighlight;
+  ```
+</ParamField>
+
+<ParamField path="Cells" type="TTextRender">
+  Default text rendering properties for all cells. Defines font, alignment, and formatting.
+  
+  ```pascal
+  Grid.Cells.Font.Name := 'Arial';
+  Grid.Cells.Font.Size := 10;
+  ```
+</ParamField>
+
+<ParamField path="ReadOnly" type="Boolean" default="false">
+  Controls whether the entire grid is read-only. When `true`, no cells can be edited.
+  
+  ```pascal
+  Grid.ReadOnly := True; // Disable all editing
+  ```
+</ParamField>
+
+<ParamField path="Scrolling" type="TGridScrolling">
+  Scrolling configuration for mouse and touch interactions.
+  
+  ```pascal
+  Grid.Scrolling.Mode := TScrollingMode.Both;  // Enable mouse and touch
+  Grid.Scrolling.Horizontal := TScrollDirection.Normal;
+  Grid.Scrolling.Vertical := TScrollDirection.Normal;
+  ```
+</ParamField>
+
+<ParamField path="Margins" type="TMargins">
+  Edge spacing around the entire grid content.
+  
+  ```pascal
+  Grid.Margins.Left := 10;
+  Grid.Margins.Top := 10;
+  ```
+</ParamField>
+
+<ParamField path="Data" type="TVirtualData">
+  The virtual data source bound to this grid. Provides the data displayed in rows.
+  
+  ```pascal
+  Grid.Data := VirtualDBData1;  // Bind to database
+  ```
+</ParamField>
+
+<ParamField path="Current" type="TRowGroup">
+  Reference to the currently active row group (for master-detail scenarios).
+</ParamField>
+
+## Key Methods
+
+<ParamField path="CellRect(AColumn, ARow)" type="TRectF">
+  Returns the rectangle coordinates of the specified cell.
+  
+  ```pascal
+  var
+    R: TRectF;
+  begin
+    R := Grid.CellRect(Grid.Columns[0], 5);
+    // R contains the rectangle of the first column, row 5
+  end;
+  ```
+</ParamField>
+
+<ParamField path="CheckColumnsWidth(APainter, Forced, AWidth)">
+  Calculates and sets column widths based on content. Use `Forced = True` to recalculate all columns.
+  
+  ```pascal
+  Grid.CheckColumnsWidth(Grid.Painter, True, Grid.Width);
+  ```
+</ParamField>
+
+<ParamField path="PrepareColumns(APainter, ALeft, ARight)">
+  Prepares columns for painting by calculating positions and widths.
+  
+  ```pascal
+  Grid.PrepareColumns(Grid.Painter, 0, Grid.Width);
+  ```
+</ParamField>
+
+<ParamField path="CanStartEditor" type="Boolean">
+  Returns `true` if cell editing can be started in the current context.
+  
+  ```pascal
+  if Grid.CanStartEditor then
+    // Start editing
+  ```
+</ParamField>
+
+<ParamField path="CanEditRender(AColumn)" type="Boolean">
+  Returns `true` if the specified column can be edited (considering ReadOnly flags).
+  
+  ```pascal
+  if Grid.CanEditRender(Grid.Columns[0]) then
+    ShowMessage('Column can be edited');
+  ```
+</ParamField>
+
+<ParamField path="RenderHit(AColumn, ARow, X, Y)" type="Boolean">
+  Tests if a point (X, Y) hits a render element in the specified cell.
+  
+  ```pascal
+  if Grid.RenderHit(Grid.Columns[0], 5, Mouse.X, Mouse.Y) then
+    ShowMessage('Hit render element');
+  ```
+</ParamField>
+
+<ParamField path="SelectedContains(X, Y)" type="Boolean">
+  Returns `true` if the point (X, Y) is within the selected cell or range.
+  
+  ```pascal
+  if Grid.SelectedContains(Mouse.X, Mouse.Y) then
+    ShowMessage('Point is in selection');
+  ```
+</ParamField>
+
+<ParamField path="ToggleDetail(Sender, ARow)" type="Boolean">
+  Toggles the visibility of detail (sub-grid) for the specified row. Used in master-detail scenarios.
+  
+  ```pascal
+  Grid.ToggleDetail(nil, 5); // Toggle detail for row 5
+  ```
+</ParamField>
+
+<ParamField path="NewExpander" type="TExpanderRender">
+  Creates a new expander render instance for master-detail functionality.
+  
+  ```pascal
+  var
+    Expander: TExpanderRender;
+  begin
+    Expander := Grid.NewExpander;
+    // Configure expander
+  end;
+  ```
+</ParamField>
+
+<ParamField path="AutoScroll">
+  Automatically scrolls the grid to make the selected cell visible.
+  
+  ```pascal
+  Grid.Selected.Row := 100;
+  Grid.AutoScroll;  // Scroll to row 100
+  ```
+</ParamField>
+
+<ParamField path="TrySelectColumn">
+  Attempts to select the first selectable column.
+  
+  ```pascal
+  Grid.TrySelectColumn;
+  ```
+</ParamField>
+
+<ParamField path="MaxBottom" type="Single">
+  Returns the maximum bottom Y coordinate of all grid content.
+  
+  ```pascal
+  var
+    Bottom: Single;
+  begin
+    Bottom := Grid.MaxBottom;
+  end;
+  ```
+</ParamField>
+
+<ParamField path="RefreshData(AData)">
+  Refreshes the grid with new or updated data source.
+  
+  ```pascal
+  Grid.RefreshData(NewVirtualData);
+  ```
+</ParamField>
+
+## Interaction Methods
+
+<ParamField path="Mouse(AState, AWidth, AHeight)" type="Boolean">
+  Handles mouse events (move, click, double-click, wheel). Returns `true` if the event was handled.
+  
+  ```pascal
+  var
+    State: TMouseState;
+  begin
+    // Mouse state populated by framework
+    Grid.Mouse(State, Grid.Width, Grid.Height);
+  end;
+  ```
+</ParamField>
+
+<ParamField path="Key(AState)">
+  Handles keyboard events for navigation and editing.
+  
+  ```pascal
+  var
+    State: TKeyState;
+  begin
+    // Key state populated by framework
+    Grid.Key(State);
+  end;
+  ```
+</ParamField>
+
+## Events
+
+<ParamField path="OnNewDetail" type="TNewDetailEvent">
+  Event triggered when a new detail (sub-grid) is created for master-detail functionality.
+  
+  ```pascal
+  procedure TForm1.GridNewDetail(const Sender, NewGroup: TRowGroup);
+  begin
+    // Configure the new detail grid
+    NewGroup.Columns.Add('Detail Column 1');
+    NewGroup.Columns.Add('Detail Column 2');
+  end;
+  
+  // Assign event
+  Grid.OnNewDetail := GridNewDetail;
+  ```
+</ParamField>
+
+<ParamField path="OnChangedSelected" type="TNotifyEvent">
+  Event triggered when the selected cell changes.
+  
+  ```pascal
+  procedure TForm1.GridSelectionChanged(Sender: TObject);
+  begin
+    ShowMessage(Format('Selected: Column %d, Row %d',
+      [Grid.Selected.Column.Index, Grid.Selected.Row]));
+  end;
+  
+  // Assign event
+  Grid.OnChangedSelected := GridSelectionChanged;
+  ```
+</ParamField>
+
+## Usage Examples
+
+### Basic Grid Setup
+
+```pascal
+begin
+  // Configure columns
+  Grid.Columns.Add('ID');
+  Grid.Columns.Add('Name');
+  Grid.Columns.Add('Email');
+  
+  // Configure rows
+  Grid.Rows.Height.Value := 25;
+  Grid.Rows.Data := MyVirtualData;
+  
+  // Configure header
+  Grid.Header.Visible := True;
+  Grid.Header.Height.Value := 30;
+  
+  // Configure indicator
+  Grid.Indicator.Visible := True;
+end;
+```
+
+### Master-Detail Grid
+
+```pascal
+procedure TForm1.SetupMasterDetail;
+var
+  ExpanderCol: TColumn;
+begin
+  // Add expander column for master rows
+  ExpanderCol := Grid.Columns.Add;
+  ExpanderCol.Width.Value := 30;
+  ExpanderCol.Render := Grid.NewExpander;
+  
+  // Handle detail grid creation
+  Grid.OnNewDetail := GridNewDetail;
+end;
+
+procedure TForm1.GridNewDetail(const Sender, NewGroup: TRowGroup);
+begin
+  // Configure detail grid
+  NewGroup.Columns.Add('Detail ID');
+  NewGroup.Columns.Add('Detail Name');
+  NewGroup.Rows.Data := GetDetailData(Sender.Selected.Row);
+end;
+
+procedure TForm1.ToggleDetailForRow(RowIndex: Integer);
+begin
+  Grid.ToggleDetail(nil, RowIndex);
+end;
+```
+
+### Cell Selection
+
+```pascal
+begin
+  // Select a specific cell
+  Grid.Selected.Column := Grid.Columns[2];
+  Grid.Selected.Row := 10;
+  Grid.AutoScroll;  // Scroll to make it visible
+  
+  // Handle selection changes
+  Grid.OnChangedSelected := procedure(Sender: TObject)
+  begin
+    with Grid.Selected do
+      ShowMessage(Format('Row: %d, Column: %s', 
+        [Row, Column.Header.Text]));
+  end;
+end;
+```
+
+### Scrolling Configuration
+
+```pascal
+begin
+  // Enable touch and mouse scrolling
+  Grid.Scrolling.Mode := TScrollingMode.Both;
+  
+  // Set scroll directions
+  Grid.Scrolling.Horizontal := TScrollDirection.Normal;
+  Grid.Scrolling.Vertical := TScrollDirection.Normal;
+  
+  // Disable horizontal scrolling
+  Grid.Scrolling.Horizontal := TScrollDirection.Disabled;
+end;
+```
+
+### Custom Headers and Footers
+
+```pascal
+var
+  ExtraHeader, FooterBand: TGridBand;
+begin
+  // Add extra header
+  ExtraHeader := Grid.Headers.Add;
+  ExtraHeader.Height.Value := 25;
+  
+  // Add footer with totals
+  FooterBand := Grid.Footer.Add;
+  FooterBand.Height.Value := 30;
+end;
+```
+
+### Read-Only Grid
+
+```pascal
+begin
+  // Make entire grid read-only
+  Grid.ReadOnly := True;
+  
+  // Or make specific columns read-only
+  Grid.Columns[0].ReadOnly := True;
+end;
+```
+
+### Auto-Sizing Columns
+
+```pascal
+begin
+  // Force recalculation of all column widths
+  Grid.CheckColumnsWidth(Grid.Painter, True, Grid.Width);
+end;
+```
+
+## Scrolling Modes
+
+The `TGridScrolling` class provides several scrolling modes:
+
+<Tabs>
+  <Tab title="Touch">
+    Scrolling only works with finger-touch gestures.
+    ```pascal
+    Grid.Scrolling.Mode := TScrollingMode.Touch;
+    ```
+  </Tab>
+  <Tab title="Mouse">
+    Scrolling works with left-button mouse drag.
+    ```pascal
+    Grid.Scrolling.Mode := TScrollingMode.Mouse;
+    ```
+  </Tab>
+  <Tab title="Both">
+    Scrolling works with both touch and mouse.
+    ```pascal
+    Grid.Scrolling.Mode := TScrollingMode.Both;
+    ```
+  </Tab>
+  <Tab title="None">
+    Scrolling is disabled.
+    ```pascal
+    Grid.Scrolling.Mode := TScrollingMode.None;
+    ```
+  </Tab>
+</Tabs>
+
+## Scroll Directions
+
+```pascal
+type
+  TScrollDirection = (Normal, Inverted, Disabled);
+```
+
+- **Normal**: Standard scrolling behavior
+- **Inverted**: Reverse scrolling direction
+- **Disabled**: Scrolling disabled for that axis
+
+## Related Classes
+
+- [TColumn](/api/tcolumn) - Column class
+- [TColumns](/api/tcolumns) - Columns collection
+- [TRows](/api/trows) - Rows band class
