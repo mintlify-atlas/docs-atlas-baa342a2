@@ -1,0 +1,193 @@
+{
+  "projectType": "frontend",
+  "projectName": "TeeGrid",
+  "projectDescription": "Lightweight full-featured grid control for Delphi VCL and FireMonkey frameworks",
+  "theme": "maple",
+  "primaryColor": "#e77c38",
+  "lightColor": "#aecae4",
+  "darkColor": "#4b6d9e",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/grid-architecture",
+              "concepts/data-binding",
+              "concepts/columns",
+              "concepts/virtual-data"
+            ]
+          },
+          {
+            "group": "Data Sources",
+            "pages": [
+              "data/datasets",
+              "data/arrays-and-lists",
+              "data/strings",
+              "data/custom-virtual-data"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/cell-editing",
+              "features/sorting",
+              "features/themes",
+              "features/custom-bands",
+              "features/hierarchical-data",
+              "features/row-grouping",
+              "features/selection"
+            ]
+          },
+          {
+            "group": "UI Customization",
+            "pages": [
+              "customization/styling",
+              "customization/custom-renderers",
+              "customization/headers-footers",
+              "customization/locked-columns"
+            ]
+          },
+          {
+            "group": "Framework Integration",
+            "pages": [
+              "frameworks/vcl",
+              "frameworks/firemonkey",
+              "frameworks/lazarus"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Classes",
+            "pages": [
+              "api/teegrid",
+              "api/customteegrid",
+              "api/virtualdata"
+            ]
+          },
+          {
+            "group": "Columns & Rows",
+            "pages": [
+              "api/tcolumn",
+              "api/tcolumns",
+              "api/trows",
+              "api/trowgroup"
+            ]
+          },
+          {
+            "group": "Data Adapters",
+            "pages": [
+              "api/virtualdbdata",
+              "api/virtualdatartti",
+              "api/griddatastrings"
+            ]
+          },
+          {
+            "group": "Rendering",
+            "pages": [
+              "api/trender",
+              "api/tpainter",
+              "api/tformat"
+            ]
+          },
+          {
+            "group": "UI Components",
+            "pages": [
+              "api/tgridbands",
+              "api/tgridselection",
+              "api/tgridediting",
+              "api/tindicator"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Examples",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "examples/basic-grid",
+              "examples/database-grid"
+            ]
+          },
+          {
+            "group": "Data Binding",
+            "pages": [
+              "examples/array-binding",
+              "examples/list-binding",
+              "examples/dataset-binding",
+              "examples/master-detail"
+            ]
+          },
+          {
+            "group": "Customization",
+            "pages": [
+              "examples/custom-editors",
+              "examples/custom-sorting",
+              "examples/themes",
+              "examples/custom-bands"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "examples/virtual-mode",
+              "examples/charts-integration",
+              "examples/performance"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Cross-platform VCL and FireMonkey support",
+    "Multiple data binding options (DataSet, Arrays, Lists, Custom)",
+    "Lightweight (10K lines, 100K compiled size)",
+    "Built-in cell editing with custom editors",
+    "Hierarchical and grouped data display",
+    "Customizable themes and rendering",
+    "Sorting, filtering, and selection",
+    "Master-detail relationships",
+    "Locked columns and custom bands",
+    "High performance virtual mode"
+  ],
+  "publicApiSurface": [
+    "TTeeGrid",
+    "TCustomTeeGrid",
+    "TVirtualData",
+    "TVirtualDBData",
+    "TVirtualDataRtti",
+    "TColumn",
+    "TColumns",
+    "TRows",
+    "TRowGroup",
+    "TGridBands",
+    "TGridSelection",
+    "TGridEditing",
+    "TRender",
+    "TPainter",
+    "TFormat",
+    "TIndicator",
+    "TDataFormat",
+    "TColumnHeader",
+    "TVirtualData<T>",
+    "TVirtualArrayData<T>",
+    "TGridDataStrings"
+  ]
+}
